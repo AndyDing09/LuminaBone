@@ -1,0 +1,6 @@
+- generic [active] [ref=e1]:
+  - generic:
+    - text: 3-D surface reconstruction
+    - text: combined_surface_points.ply · 220000 points
+    - text: drag rotate · wheel zoom · right-drag pan
+    - text: C photo/height colour · Space spin · R reset

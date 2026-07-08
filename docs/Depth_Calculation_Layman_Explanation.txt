@@ -1,0 +1,169 @@
+How The Endoscope Depth Calculation Works
+=========================================
+
+Simple Summary
+--------------
+
+The depth map is made by looking at how the bone changes brightness when it is
+lit from different directions.
+
+The camera stays in the same place, but the LEDs turn on from different sides:
+
+- one image with the right LED
+- one image with the upper LED
+- one image with the left LED
+
+If one part of the bone is brighter when the right LED is on, that part is
+tilted toward the right light. If it is brighter when the left LED is on, it is
+tilted the other way.
+
+The code uses those brightness changes to figure out the surface angle at each
+pixel. After it knows the surface angles, it builds a depth map from those
+angles.
+
+
+Step 1: Correct The Camera Image
+--------------------------------
+
+Before depth is calculated, the image is corrected using the camera calibration
+file:
+
+calibration.txt
+
+This file contains the camera lens information. It helps remove lens distortion,
+which means straight lines and positions in the image are more accurate.
+
+Important: camera calibration does not directly calculate depth. It simply makes
+the images cleaner and more geometrically correct before the depth math starts.
+
+
+Step 2: Prepare The Brightness Images
+-------------------------------------
+
+Each LED image is converted from color into a clean brightness image.
+
+The code also removes bright shiny spots, called specular highlights, because
+those spots are reflections and can trick the depth calculation.
+
+The code also balances the brightness of the three images so that one LED image
+is not unfairly brighter than another just because of camera exposure.
+
+
+Step 3: Use The Three Lights To Find Surface Direction
+------------------------------------------------------
+
+This is the main idea of photometric stereo.
+
+Photometric stereo means:
+
+"Use several images from the same camera, with different light directions, to
+estimate the 3D shape of the surface."
+
+For every pixel, the code compares the brightness under the three LEDs.
+
+Example:
+
+- bright from the right LED means the surface faces more toward the right
+- bright from the left LED means the surface faces more toward the left
+- bright from the upper LED means the surface faces more upward
+
+From this, the code estimates the surface normal.
+
+A surface normal is just a small arrow pointing out from the surface. It tells
+which way the surface is facing.
+
+
+Step 4: Convert Surface Direction Into Slope
+--------------------------------------------
+
+Once the code knows which way the surface is facing, it can estimate the slope
+of the surface.
+
+Think of it like this:
+
+- a flat area has very little slope
+- a rising bump has slopes pointing upward
+- a dip has slopes pointing downward
+
+The code calculates the slope left-to-right and top-to-bottom for every pixel.
+
+
+Step 5: Build The Depth Map
+---------------------------
+
+After the code knows the slope everywhere, it connects all those slopes together
+to build a depth map.
+
+This is like walking across a landscape:
+
+- if the ground slopes upward, your height increases
+- if the ground slopes downward, your height decreases
+- if the ground is flat, your height stays about the same
+
+The code does this mathematically across the whole image.
+
+The method used is called the Frankot-Chellappa integration method. In simple
+terms, it is a fast way to turn surface slopes into a smooth depth map.
+
+
+What The Final Depth Means
+--------------------------
+
+The output is a relative depth map.
+
+Relative depth means the code can show which parts are higher or lower compared
+to nearby areas, but it does not automatically know the exact real-world height
+unless the system is calibrated with real measurements.
+
+The code reports "relief," which means the height difference between the higher
+and lower parts of the bone surface.
+
+In simple terms:
+
+relief = how much the surface rises and falls
+
+
+How Inches Are Calculated
+-------------------------
+
+The code knows the width of the photographed area. In the current setup, that
+field width is treated as 37 mm, which is about 1.46 inches.
+
+The code converts pixel depth into inches using this idea:
+
+inches per pixel = real photo width in inches / image width in pixels
+
+Then:
+
+relief in inches = relief in pixels * inches per pixel
+
+So the inch value depends on the measured real-world width of the area shown in
+the image.
+
+
+Very Short Version
+------------------
+
+The camera takes three pictures of the same bone area with three different LEDs.
+The code looks at how bright each pixel is under each LED. Brightness tells the
+code which way that tiny part of the bone is tilted. The code turns those tilts
+into slopes, then connects the slopes together to make a depth map. Finally, it
+converts the depth differences into inches using the measured width of the image.
+
+
+Important Limitations
+---------------------
+
+The depth map is best for comparing shape and surface relief.
+
+The exact inch measurement depends on:
+
+- accurate camera calibration
+- correct LED directions
+- correct measured field width
+- good images without glare or motion
+
+So the depth result is strongest as a surface-shape and relative-relief estimate.
+The inch numbers become more accurate as the camera and physical measurements
+are calibrated more carefully.
+
