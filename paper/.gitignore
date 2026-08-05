@@ -1,2 +1,6 @@
-# intermediate build artifact (manuscript.pdf is the deliverable)
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
 manuscript.html

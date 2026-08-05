@@ -1,92 +1,101 @@
 # paper/
 
-Draft journal manuscript documenting the `marker-pipeline` measurement stack.
+Draft journal manuscript: **near-light photometric stereo** for the four-LED
+ring endoscope, its calibration, and fiducial-anchored registration to CT.
 
 | File | What it is |
 |---|---|
-| `manuscript.md` | the draft (v0.2), Markdown + LaTeX math |
-| `manuscript.pdf` | built output — **read this** |
-| `build_pdf.sh` | `manuscript.md` → PDF (pandoc → MathML → headless Chromium; no LaTeX needed) |
-| `style.css` | journal-style page/typography rules used by the build |
-| `make_fig_inversion.py` | generates Figure 2 from the committed CSVs |
-| `fig2_inversion.png` | Figure 2 output |
+| `manuscript.tex` | the draft (v0.3), IEEEtran **two-column journal format** |
+| `manuscript.pdf` | built output — **read this** (15 pp.) |
+| `make_fig_rig.py` → `fig1_rig.png` | Fig. 1, system geometry (LED ring + side view) |
+| `make_fig_inversion.py` → `fig2_inversion.png` | Fig. 2, the CT inversion result |
+| `manuscript.md` | superseded v0.2 single-column draft, kept for reference |
+| `build_pdf.sh`, `style.css` | v0.2 markdown→PDF path, superseded by LaTeX |
 
-Rebuild: `python3 make_fig_inversion.py && ./build_pdf.sh`
+Rebuild:
 
-## Scope
+```bash
+python3 make_fig_rig.py && python3 make_fig_inversion.py
+pdflatex manuscript && pdflatex manuscript    # twice, for refs
+```
 
-Covers sessions **`shot_011`–`shot_015`** and the code behind their
-marker-depth slides:
+## Structure
 
-| Stage | Module |
-|---|---|
-| Marker detection | `marker_pipeline/detect_trackers.py` |
-| Depth + slide generation | `marker_pipeline/marker_depth_slides.py` |
-| Photometric-stereo core | `scripts/reconstruction/bone_depth_batch.py` |
-| Lens-to-marker distance | `marker_pipeline/marker_distances.py` |
-| CT anchoring (diagnostic) | `marker_pipeline/apply_ct_shot011.py` |
-| Correction models | `marker_pipeline/ct_correct_depth.py` |
-| Near-field solver (blocked) | `scripts/reconstruction/nearfield_lambertian.py` |
-| LED calibration (blocked) | `marker_pipeline/led_calibration.py` |
+Reorganised so near-light photometric stereo is the method, not an appendix:
 
-Deliberately **out of scope**: the older `loc01`–`loc17` triangulation slides,
-the meshing/PLY family, and the correspondence-free surface-ICP registration.
-The ICP episode survives only as a one-paragraph cautionary note in §2.11.4.
+1. **System design** — optical head, four LEDs 90° apart on a ring, Arduino Pro
+   sequencing, coordinate conventions, capture protocol
+2. **Geometric calibration** — the ring **offset** (12.08 mm) and the **scale**
+   (37 mm field → mm/px, focal length), and the focal-length conflict
+3. **Near-light photometric stereo** — why far-field is inadmissible at
+   η = 0.40, the point-source irradiance model, dichromatic specular separation,
+   per-pixel normal solve, **perspective log-depth derivation**, iteration
+4. **LED calibration** — anisotropy, mirror-sphere triangulation, direction and
+   intensity by white-plane least squares
+5. **Fiducial localization** — sparkle cue, acceptance, cross-frame confirmation
+6. **Registration to CT** — error nomenclature, P3P transfer *(rest placeholder)*
+7. **Experimental validation** — yield, the inversion, distances, scale
+   conflict, self-tests
 
-## Status of the numbers
+## Math verification
 
-Everything outside a marked placeholder block is reproduced from committed
-outputs and independently verified. Headline figures:
+Every derivation was independently re-derived and numerically cross-checked
+before this draft. **Verified correct:** the perspective log-depth relation
+(symbolically and against finite differences), the `r³` power in the irradiance
+model, the normal-equation solve, the LED ring geometry including the Y-sign,
+`fx = W·d/F` and all four focal-length figures, the elevation expression, the
+`s = d/fx` identity, the P3P transfer and range formula, and every LED-calibration
+solver.
 
-- 18 markers over 5 sessions; 78% confirmed in all four LED frames
-- photometric depth vs CT lens distance at `shot_011`: **r = −0.923**
-- depth ordering of the 3 CT markers: **reversed**, (3,1,4) → (4,1,3)
-- affine fit: `z_corr = −4.218·z_est − 5.791`, **4.36 mm RMS** over a 20.7 mm span
-- both self-tests (`ct_correct_depth`, `led_calibration`) **pass**
+**Problems found and now reported in the paper** — several would have been
+caught by a reviewer:
+
+- **The iteration-count justification was false.** The code claimed higher
+  iteration counts degrade the normals; a convergence sweep shows a stable fixed
+  point from sweep 4 through sweep 30. The paper now reports the real convergence
+  behaviour (Table IV).
+- **The `fx/fy = 1.33` claim was backwards.** At the 640×480 call actually used
+  the formula gives fx/fy = 1.0000; 1.33 appears only for 16:9 input.
+- **The 46.0 mm anchor is mislabelled** as the "median" P3P distance — the median
+  is 50.92 mm; 46.0 matches the *mean*. It is also a Euclidean statistic used as
+  an axial depth, double-counting obliquity by up to 15% off-axis.
+- **A scale conflict no focal length resolves** (new §VIII-E). The pose solution
+  implies a 59–63 mm field width for *any* fx, versus the 37 mm bench figure.
+  Either that measurement is wrong by ~1.7×, or the CT-to-detection fiducial
+  correspondence is wrong — the detector numbers fiducials by image position,
+  which bears no necessary relation to CT numbering, and index equality is
+  assumed but nowhere verified. This does **not** affect the inversion result
+  (correlation and rank are scale-invariant).
+- **The calibration self-tests are not sound validation.** Mutation testing shows
+  the emitter-position test passes with a deliberately wrong tangent-cone formula
+  (sin→tan), and its 2.0 mm tolerance passes a broken solver on 10 of 12 seeds
+  against a true error of 2.5e−12 mm. The cos⁴ and 1/r³ laws are tautological
+  (identical in generator and solver), and μ = 1 is hard-coded so the
+  linearisation is never exercised.
+- Principal point set to the image centre rather than its calibrated value
+  (14.5 px in cy, 0.1–0.7 mm on reported distances).
+- Cheirality filtering in P3P is a **no-op**; the ordinal constraint is a
+  one-bit test that fails in 2.9% of random configurations — though it is
+  unambiguous for this dataset across 40,000 perturbation trials.
+- Dichromatic separation needs equal *linear R and B camera response*, not merely
+  a "white" LED: a 5% imbalance leaks ~18% of the specular signal.
 
 ## Placeholders — go back and fill
 
-Marked inline with `⚠️ PLACEHOLDER` (red blocks in the PDF). Registration
-sections are scaffolding only; bracketed values like `[T.TT]` are invented.
+Red boxes in the PDF. Registration sections are scaffolding; bracketed values
+like `[T.TT]` are invented.
 
-- **§2.11** Registration method — the paper's principal section, unwritten
-- **§3.7** Registration accuracy — no result exists
-- **§2.2.4** Capture conditions — not documented
-- **§2.3** Calibration residuals — not recorded
-- **§4.4, §5** item 10, **§6** final conclusion
-- **Statements and Declarations** — all headings
-- Front matter and reference list
+- **§VII** Registration method — the principal section, unwritten
+- **§VIII-G** Registration accuracy — no result exists
+- **§II-B** Arduino Pro variant, LED part number, drive current, θ½
+- **§III-C** calibration residuals; **§VIII-A** specimen description
 
-Full checklist with dependencies: **Appendix C** (R1–R8, C1–C5, M1–M6).
+Full checklist: **Appendix A** (R1–R8, C1–C9, M1–M6).
 
-## v0.2 changes
+## Reference verification
 
-Revised after surveying how comparable papers report data collection and
-registration validation. Two of the changes are **corrections to v0.1**:
-
-1. **Quéau et al. is 2018**, *J. Math. Imaging Vis.* 60(3):313–340 — not 2017.
-   (`led_calibration.py`'s docstring cites the 2017 preprint year; worth
-   aligning.)
-2. **The P3P citation was wrong.** The code calls `SOLVEPNP_AP3P`, which OpenCV
-   implements from Ke & Roumeliotis (CVPR 2017) — not Gao et al. 2003. The
-   neighbouring `SOLVEPNP_P3P` flag maps to Gao on OpenCV 4.5.5 but to a
-   different algorithm on current 4.x, so **the version must be pinned or the
-   citation is unfalsifiable**.
-
-Structural additions: acquisition-invariants table, per-session file manifest,
-rig-geometry table with a provenance column, an assumption ledger for the
-photometric-stereo model, a software-provenance table binding each stage to its
-solver flag and paper, FLE/FRE/TRE nomenclature with **TRE as the accuracy
-endpoint and FRE explicitly demoted to a diagnostic**, a fiducial-configuration
-subsection, ground-truth-uncertainty flags, and a full declarations block.
-
-## Reference verification — read before submitting
-
-Publisher sites (IEEE, Springer, SPIE, doi.org, PubMed, arXiv) were unreachable
-from the build environment, so most references could **not** be confirmed against
-a publisher record. Appendix D marks each entry `verified` or `unverified`, and
-every unverified entry is bracketed in the reference list. Two entries are
-genuinely verified — Quéau (via the author's own released code) and the
-AP3P/OpenCV linkage (via the OpenCV source). **Everything else needs checking.**
-Citation drift in third-party BibTeX is rampant; do not populate the list from a
-reference manager without checking each entry.
+Publisher sites were unreachable from the build environment. **Appendix B** marks
+each entry verified or unverified; only Quéau *et al.* (2018) and the
+AP3P/OpenCV linkage are verified. Note the code calls `SOLVEPNP_AP3P` (Ke &
+Roumeliotis), *not* Gao *et al.* — and the neighbouring `SOLVEPNP_P3P` flag maps
+to different papers across OpenCV versions, so pin the version.
