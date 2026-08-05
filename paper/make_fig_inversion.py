@@ -1,16 +1,23 @@
 #!/usr/bin/env python3
 """Figure 2 — the shot_011 depth-inversion result.
 
+CT distances are RECOMPUTED here from the CT control points and the detected
+fiducial pixels at the recess-corrected intrinsics (f_x = W*d_work/field_0 with
+d_work = 31 mm), rather than read from the committed CSV, which was written with
+the uncorrected 30 mm working distance.
+
 (a) far-field photometric relative depth vs CT-derived lens-to-marker distance,
 (b) the near-to-far ordering of the three CT-known markers under each method.
 
-All values are read from the committed pipeline outputs; nothing is synthetic.
-Source: depth_outputs/marker_depth_slides/{shot_011_ct_corrected.csv,
-        marker_distances.csv}
+Photometric depths come from the committed pipeline output; CT distances are
+solved here. Nothing is synthetic.
+Source: depth_outputs/marker_depth_slides/marker_depths.csv (pixels, z_est)
+        + the CT control points below.
 """
 import csv
 import os
 
+import cv2
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -39,21 +46,47 @@ plt.rcParams.update({
 })
 
 
+# rig geometry, recess-corrected (see manuscript Sec. III)
+TIP_MM, RECESS_MM, FIELD0_MM, W, H = 30.0, 1.0, 37.0, 640, 480
+D_WORK_MM = TIP_MM + RECESS_MM
+FX = W * D_WORK_MM / FIELD0_MM                          # 536.2 px
+
+CT = {1: (9.224, -1.632, 11.818),
+      3: (3.729, -13.209, 23.259),
+      4: (-17.665, 0.732, 17.412)}
+CLOSEST = 4                                             # confirmed physical fact
+
+
 def load():
-    """z_est from the CT-corrected diagnostic; CT distance from marker_distances."""
-    z_est, ct_rel = {}, {}
-    with open(os.path.join(SLIDES, "shot_011_ct_corrected.csv")) as f:
+    """z_est from the committed depth CSV; CT distances recomputed by P3P."""
+    z_est, px = {}, {}
+    with open(os.path.join(SLIDES, "marker_depths.csv")) as f:
         for r in csv.DictReader(f):
+            if r["shot"] != "shot_011":
+                continue
             i = int(r["id"])
-            z_est[i] = float(r["z_est_mm"])
-            if r["ct_cam_rel_mm"]:
-                ct_rel[i] = float(r["ct_cam_rel_mm"])
-    dist = {}
-    with open(os.path.join(SLIDES, "marker_distances.csv")) as f:
-        for r in csv.DictReader(f):
-            if r["shot"] == "shot_011" and r["method"].startswith("CT"):
-                dist[int(r["id"])] = float(r["distance_from_lens_mm"])
-    ids = sorted(dist)                                  # CT-validated markers only
+            z_est[i] = float(r["z_mm"])
+            px[i] = (float(r["x_px"]), float(r["y_px"]))
+
+    ids = sorted(CT)
+    obj = np.array([CT[i] for i in ids])
+    img = np.array([px[i] for i in ids])
+    K = np.array([[FX, 0, W / 2.0], [0, FX, H / 2.0], [0, 0, 1.0]])
+    _, rvecs, tvecs = cv2.solveP3P(obj.reshape(-1, 1, 3), img.reshape(-1, 1, 2),
+                                   K, None, flags=cv2.SOLVEPNP_AP3P)
+    dist, ct_rel = None, None
+    for rv, tv in zip(rvecs, tvecs):
+        R, _ = cv2.Rodrigues(rv)
+        cam = (R @ obj.T + tv).T
+        if not (cam[:, 2] > 0).all():
+            continue
+        d = {i: float(np.linalg.norm(c)) for i, c in zip(ids, cam)}
+        if min(d, key=d.get) == CLOSEST:
+            dist = d
+            med = float(np.median(cam[:, 2]))
+            ct_rel = {i: float(cam[k, 2] - med) for k, i in enumerate(ids)}
+    if dist is None:
+        raise RuntimeError("no pose with the confirmed closest fiducial")
     return ids, z_est, ct_rel, dist
 
 
@@ -92,7 +125,7 @@ def main():
                  xy=(0.97, 0.06), xycoords="axes fraction", ha="right",
                  fontsize=7.5, style="italic", color=MUTED)
     axa.set_ylim(-4.2, 4.6)
-    axa.set_xlim(30, 57)
+    axa.set_xlim(31, 59)
 
     # ---------------- (b) the ordering reversal ----------------
     ph = sorted(ids, key=lambda i: z_est[i])            # ascending z: near -> far

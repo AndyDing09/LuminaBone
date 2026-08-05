@@ -22,8 +22,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "fig1_rig.png")
 
 LED_OFFSET_MM = 12.08
-FIELD_WIDTH_MM = 37.0
-WORKING_DISTANCE_MM = 30.0
+FIELD_WIDTH_MM = 37.0          # at the near plane
+TIP_DISTANCE_MM = 30.0         # measured tip-to-surface
+LENS_RECESS_MM = 1.0           # lens sits this far behind the distal tip
+WORKING_DISTANCE_MM = TIP_DISTANCE_MM + LENS_RECESS_MM   # = 31.0, lens-referenced
 AZ = {1: 0.0, 2: 90.0, 3: 180.0, 4: 270.0}
 
 INK, MUTED, GRID = "#0b0b0b", "#52514e", "#c9c9c4"
@@ -111,14 +113,24 @@ def panel_b(ax):
     # working distance
     ax.annotate("", xy=(-half - 2.4, 0), xytext=(-half - 2.4, d),
                 arrowprops=dict(arrowstyle="<->", color=INK, lw=0.9))
-    ax.annotate("$d_{\\mathrm{work}}$\n$=30$ mm", (-half - 3.4, d / 2),
+    ax.annotate("$d_{\\mathrm{work}}$\n$=31$ mm\n(lens)", (-half - 3.4, d / 2),
                 fontsize=7.5, ha="right", va="center")
+    # the 1 mm lens recess behind the distal tip
+    ax.plot([-LED_OFFSET_MM - 4, LED_OFFSET_MM + 4], [-LENS_RECESS_MM, -LENS_RECESS_MM],
+            color=MUTED, lw=0.9, ls=(0, (4, 2)), zorder=1)
+    ax.annotate("distal tip", (LED_OFFSET_MM + 4.4, -LENS_RECESS_MM),
+                fontsize=6.8, color=MUTED, ha="left", va="center")
+    # placed clear of L3 (which extends to x = -13.6)
+    ax.annotate("", xy=(-16.6, -LENS_RECESS_MM), xytext=(-16.6, 0),
+                arrowprops=dict(arrowstyle="<->", color=MUTED, lw=0.8))
+    ax.annotate("1 mm\nrecess", (-17.4, -0.5), fontsize=6.8,
+                color=MUTED, ha="right", va="center", linespacing=0.95)
 
     # field width. NOTE: the y-axis is inverted, so a LARGER y sits LOWER on
     # the page — the label y must exceed the arrow y to clear it.
     ax.annotate("", xy=(-half, d + 4.2), xytext=(half, d + 4.2),
                 arrowprops=dict(arrowstyle="<->", color=INK, lw=0.9))
-    ax.annotate("field width $= 37$ mm", (0, d + 7.0), fontsize=7.5,
+    ax.annotate("field width $= 37$ mm (near plane)", (0, d + 7.0), fontsize=7.5,
                 ha="center", va="center")
 
     # offset call-out
@@ -127,7 +139,7 @@ def panel_b(ax):
     ax.annotate("$r_{\\mathrm{LED}}$", (LED_OFFSET_MM / 2, -7.4), fontsize=7.5,
                 ha="center", va="top")
 
-    ax.annotate("near-field ratio  $r_{\\mathrm{LED}}/d_{\\mathrm{work}} = 0.40$",
+    ax.annotate("near-field ratio  $r_{\\mathrm{LED}}/d_{\\mathrm{work}} = 0.39$",
                 (0, d + 11.5), fontsize=8, ha="center", style="italic",
                 color=INK)
 

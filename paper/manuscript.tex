@@ -85,9 +85,10 @@ incurred by the far-field approximation at this geometry.
 \textbf{\textit{Methods---}}Four LEDs are mounted \SI{90}{\degree} apart on a
 ring of measured radius \SI{12.08}{\milli\metre} about the lens and sequenced
 individually by a microcontroller, giving four single-emitter exposures plus an
-ambient frame per session at a measured \SI{30}{\milli\metre} working distance
-over a \SI{37}{\milli\metre} field. The offset-to-working-distance ratio is
-\num{0.40}, placing the rig unambiguously in the near field. We derive the
+ambient frame per session. The lens sits \SI{1}{\milli\metre} behind the distal
+tip, giving a lens-referenced working distance of \SI{31}{\milli\metre} over a
+\SI{37}{\milli\metre} near-plane field. The offset-to-working-distance ratio is
+\num{0.39}, placing the rig unambiguously in the near field. We derive the
 perspective log-depth relation used to integrate normals metrically, and
 implement the LED calibration of Qu\'eau \textit{et al.} recovering per-emitter
 position, principal direction, anisotropy and intensity. Five sessions of an
@@ -97,10 +98,10 @@ with a confirmed ordinal constraint.
 \textbf{\textit{Results---}}Fiducial localization recovered 18 markers, 14
 (\SI{78}{\percent}) confirmed independently under all four illumination
 directions. Against CT, the far-field depth estimate proved
-\emph{anti-correlated} with true lens-to-marker distance ($r=-0.923$), reversing
+\emph{anti-correlated} with true lens-to-marker distance ($r=-0.925$), reversing
 the near-to-far ordering of all three CT-known fiducials; least-squares affine
 rescaling onto the CT control points returned a \emph{negative} slope and left a
-\SI{4.36}{\milli\metre} RMS residual over a \SI{20.7}{\milli\metre} true span.
+\SI{4.23}{\milli\metre} RMS residual over a \SI{20.6}{\milli\metre} true span.
 The near-light solver and its calibration pass synthetic self-tests to
 \SI{0.00}{\milli\metre} in emitter position and \SI{0.090}{\degree} in principal
 direction.
@@ -135,7 +136,8 @@ the scene.
 
 Endoscopic rigs violate both assumptions comprehensively. On the instrument
 described here the emitters sit \SI{12.08}{\milli\metre} off the optical axis at
-a \SI{30}{\milli\metre} working distance, a ratio of \num{0.40}. The direction
+a \SI{31}{\milli\metre} lens-referenced working distance, a ratio of
+\num{0.39}. The direction
 to a given emitter therefore sweeps by tens of degrees across the
 \SI{37}{\milli\metre} field, and inverse-square falloff is a first-order effect
 rather than a correction term. The correct treatment is \emph{near-light}
@@ -258,10 +260,11 @@ Exposure & nominally fixed, normalized in software & Sec.~\ref{sec:exposure} \\
 \caption{System geometry. (a) Face view of the LED ring: four emitters
 \SI{90}{\degree} apart at the measured radius
 $r_\mathrm{LED}=\SI{12.08}{\milli\metre}$ about the lens. (b) Side view showing
-the measured working distance $d_\mathrm{work}=\SI{30}{\milli\metre}$, the
+the recess-corrected working distance $d_\mathrm{work}=\SI{31}{\milli\metre}$, the
 \SI{37}{\milli\metre} field width, and the resulting illumination elevation
-$\theta_\mathrm{elev}=\SI{68.1}{\degree}$ at the on-axis surface point. The
-offset-to-working-distance ratio of \num{0.40} is what places this rig in the
+$\theta_\mathrm{elev}=\SI{68.7}{\degree}$ at the on-axis surface point, and the
+\SI{1}{\milli\metre} recess of the lens behind the distal tip. The
+offset-to-working-distance ratio of \num{0.39} is what places this rig in the
 near field and makes the far-field approximation inadmissible
 (Sec.~\ref{sec:whyfar}). All dimensions are measured values.}
 \label{fig:rig}
@@ -283,31 +286,52 @@ measured and calibration-derived values disagree
 scene, origin at the optical centre.}
 \label{tab:geom}
 \footnotesize
-\begin{tabular}{@{}ll l p{0.24\columnwidth}@{}}
+\begin{tabular}{@{}ll l p{0.22\columnwidth}@{}}
 \toprule
 \textbf{Symbol} & \textbf{Value} & \textbf{Provenance} & \textbf{Role} \\
 \midrule
 $r_\mathrm{LED}$ & \SI{12.08}{\milli\metre} & measured & ring offset \\
-field width      & \SI{37.0}{\milli\metre}  & measured & scale \\
-$d_\mathrm{work}$& \SI{30.0}{\milli\metre}  & measured & working distance \\
-$\theta_\mathrm{elev}$ & \SI{68.1}{\degree} & derived  & elevation \\
-$s$              & \num{0.05781}\,mm/px     & derived  & in-plane scale \\
-$f_x$            & \num{519}\,px            & derived  & focal length \\
-$f_x$ (chkbd.)   & \num{794}\,px            & calibrated & \textbf{conflicts} (Sec.~\ref{sec:ambiguity}) \\
+$d_\mathrm{tip}$ & \SI{30.0}{\milli\metre}  & measured & tip-to-surface \\
+$\delta$         & \SI{1.0}{\milli\metre}   & measured & lens recess \\
+$d_\mathrm{work}$& \SI{31.0}{\milli\metre}  & derived  & lens-to-surface \\
+$\Omega_0$       & \SI{37.0}{\milli\metre}  & measured & field width, near plane \\
+$\theta_\mathrm{elev}$ & \SI{68.7}{\degree} & derived  & elevation, on axis \\
+$s_0$            & \num{0.0578}\,mm/px      & derived  & scale, near plane \\
+$f_x$            & \num{536}\,px            & derived  & focal length \\
+$f_x$ (chkbd.)   & \num{794}\,px            & calibrated & unresolved, Sec.~\ref{sec:ambiguity} \\
 $W$              & \num{640}\,px            & config.  & working resolution \\
 $\theta_{1/2}$   & \TODO{TBD}               & datasheet & emitter anisotropy \\
 \bottomrule
 \end{tabular}
 \end{table}
 
+\subsection{The lens recess}\label{sec:recess}
+The optical head is enclosed in a case, and the lens is not flush with the
+distal tip: it sits a measured $\delta=\SI{1.0}{\milli\metre}$ \emph{behind} it.
+Any distance gauged to the tip therefore \emph{understates} the true
+lens-to-target distance, and every lens-referenced quantity must carry the
+correction
+\begin{equation}
+d_\mathrm{work} = d_\mathrm{tip} + \delta = 30.0 + 1.0 = \SI{31.0}{\milli\metre}.
+\label{eq:recess}
+\end{equation}
+This is a fixed instrument property, not a fitted parameter, and it propagates
+into the elevation of Eq.~\eqref{eq:elev} and the focal length of
+Eq.~\eqref{eq:fx}. It does \emph{not} affect relative depths, which are
+differences about a per-session median and in which a common offset cancels; nor
+does it affect distances recovered by pose estimation
+(Sec.~\ref{sec:p3p}), which already resolve to the optical centre and would be
+double-counted by a further $+\delta$. All distances reported in this paper are
+lens-referenced unless explicitly stated otherwise.
+
 \subsection{The offset and the illumination elevation}
 The elevation of an emitter above the surface plane, evaluated at the surface
 point on the optical axis, follows from the right triangle formed by the ring
-offset and the working distance:
+offset and the (recess-corrected) working distance:
 \begin{equation}
 \theta_\mathrm{elev}
 = \arctan\!\left(\frac{d_\mathrm{work}}{r_\mathrm{LED}}\right)
-= \arctan\!\left(\frac{30.0}{12.08}\right) = \SI{68.1}{\degree}.
+= \arctan\!\left(\frac{31.0}{12.08}\right) = \SI{68.7}{\degree}.
 \label{eq:elev}
 \end{equation}
 This value is \emph{derived} from the two measured lengths rather than assumed.
@@ -317,7 +341,7 @@ along the emitter's axis the true elevation ranges from \SI{44.5}{\degree}
 through \SI{90}{\degree} to \SI{77.9}{\degree}; evaluated at the three CT-known
 fiducial positions in the recovered camera frame it takes the values
 \SI{74.9}{\degree}, \SI{83.5}{\degree} and \SI{57.9}{\degree}, against the
-constant \SI{68.1}{\degree} actually used. That spread is the far-field
+constant \SI{68.7}{\degree} actually used. That spread is the far-field
 approximation made visible, and it is precisely the point of
 Sec.~\ref{sec:whyfar}.
 
@@ -327,22 +351,30 @@ pinhole model with
 \begin{equation}
 K = \begin{bmatrix} f_x & 0 & c_x \\ 0 & f_y & c_y \\ 0 & 0 & 1 \end{bmatrix}
 \end{equation}
-is used thereafter, with the principal point at the image centre. The in-plane
-scale at the working distance is
+is used thereafter, with the principal point at the image centre. The measured
+field width $\Omega_0=\SI{37.0}{\milli\metre}$ was gauged at the near plane, so
+the corresponding in-plane scale
 \begin{equation}
-s = \frac{\text{field width}}{W} = \frac{37.0}{640}
-  = \SI{0.05781}{\milli\metre\per pixel}.
+s_0 = \frac{\Omega_0}{W} = \frac{37.0}{640}
+  = \SI{0.0578}{\milli\metre\per pixel}
 \label{eq:scale}
 \end{equation}
+holds \emph{at that plane only}. Under perspective the scale is
+depth-dependent, $s(Z) = Z/f_x$, a point we return to in
+Sec.~\ref{sec:scaleplane} because it is easy to misread.
+
 Rather than adopt the checkerboard focal length, the pipeline derives $f_x$ from
-the same two measured lengths. For a pinhole camera imaging a field of metric
-width $\Omega$ at distance $d$ onto $W$ pixels, similar triangles give
-$\Omega/d = W/f_x$, hence
+the measured lengths. For a pinhole camera imaging a field of metric width
+$\Omega$ at distance $d$ onto $W$ pixels, similar triangles give
+$\Omega/d = W/f_x$, hence, with the recess correction of
+Eq.~\eqref{eq:recess},
 \begin{equation}
-f_x = \frac{W\, d_\mathrm{work}}{\Omega} = \frac{640 \times 30.0}{37.0}
-    = \SI{519}{pixel}.
+f_x = \frac{W\, d_\mathrm{work}}{\Omega_0} = \frac{640 \times 31.0}{37.0}
+    = \SI{536}{pixel}.
 \label{eq:fx}
 \end{equation}
+The recess raises $f_x$ by \SI{3.3}{\percent} over the value obtained from the
+uncorrected \SI{30}{\milli\metre}.
 The vertical focal length follows from the same distance and the field height
 $\tfrac{3}{4}\Omega$, which encodes a \num{4}:\num{3}-shaped physical field
 irrespective of the frame's aspect ratio; at the \num{4}:\num{3} working
@@ -364,10 +396,11 @@ straightforward correctness fix.
 \subsection{The focal-length ambiguity}\label{sec:ambiguity}
 The checkerboard calibration returns $f_x = \SI{1588}{pixel}$ at native
 resolution, i.e. \SI{794}{pixel} at the \num{640}\,px working width --- a factor
-of \num{1.53} above Eq.~\eqref{eq:fx}. Equivalently, the calibrated focal length
-implies a \SI{45.9}{\milli\metre} working distance for a \SI{37}{\milli\metre}
-field where \SI{30}{\milli\metre} was measured, and a field of view near
-\SI{44}{\degree} where the measured pair imply roughly \SI{63}{\degree}.
+of \num{1.48} above Eq.~\eqref{eq:fx}. Equivalently, the calibrated focal length
+implies a \SI{45.9}{\milli\metre} lens-to-surface distance for a
+\SI{37}{\milli\metre} field where \SI{31.0}{\milli\metre} follows from the
+measurements, and a field of view near \SI{44}{\degree} where the measured pair
+imply roughly \SI{62}{\degree}.
 
 We resolve this in favour of the bench measurements, on the grounds that the two
 measurements are mutually consistent while the checkerboard result contradicts
@@ -393,7 +426,7 @@ constant over the field and that intensity falloff within the scene be
 negligible. The governing dimensionless quantity is the ratio of source offset
 to working distance,
 \begin{equation}
-\eta = \frac{r_\mathrm{LED}}{d_\mathrm{work}} = \frac{12.08}{30.0} = 0.40 ,
+\eta = \frac{r_\mathrm{LED}}{d_\mathrm{work}} = \frac{12.08}{31.0} = 0.39 ,
 \end{equation}
 which is order unity rather than small. Two consequences follow directly. First,
 the direction from a surface point to a given emitter varies across the
@@ -513,8 +546,8 @@ same code path serves $K=3$ (exact) and $K=4$ (least squares, the ring rig here)
 without special-casing.
 
 Two properties of this system deserve statement rather than assumption. The
-emitters sit only \SI{21.9}{\degree} off the optical axis at
-\SI{12.08}{\milli\metre} and \SI{30}{\milli\metre}, so the configuration is
+emitters sit only \SI{21.3}{\degree} off the optical axis at
+\SI{12.08}{\milli\metre} and \SI{31}{\milli\metre}, so the configuration is
 inherently narrow-baseline: $\operatorname{cond}(M)\approx5.4$ on axis, and
 forming the normal equations squares it to
 $\operatorname{cond}(M^{\!\top}\!M)\approx28.8$, rising to \num{49.7} off axis.
@@ -1096,7 +1129,7 @@ smallest, consistent with confidence degrading at the small-radius end.
 Pooled across sessions the far-field relative depth has mean
 \SI{-0.047}{\milli\metre} and standard deviation \SI{2.25}{\milli\metre}, with
 per-session spans of \SIrange{3.69}{5.68}{\milli\metre}. These magnitudes are
-physically plausible for vertebral relief over a \SI{37}{\milli\metre} field ---
+physically plausible for vertebral relief over a field of this size ---
 which is exactly why the failure reported next is not self-announcing.
 
 \begin{figure*}[t]
@@ -1118,10 +1151,10 @@ This is the paper's principal empirical result.
 
 For the three CT-known fiducials, the P3P solution of Sec.~\ref{sec:p3p} --- the
 branch placing fiducial~4 nearest --- gives lens distances of
-\SI{33.5}{\milli\metre} (fiducial~4), \SI{50.9}{\milli\metre} (1) and
-\SI{53.2}{\milli\metre} (3), spanning \SI{19.7}{\milli\metre}. Converted to
+\SI{35.3}{\milli\metre} (fiducial~4), \SI{52.5}{\milli\metre} (1) and
+\SI{54.8}{\milli\metre} (3), spanning \SI{19.5}{\milli\metre}. Converted to
 camera-frame depth relative to the fiducial-set median, the CT values span
-\SI{20.7}{\milli\metre}. The far-field photometric depths for the same three
+\SI{20.6}{\milli\metre}. The far-field photometric depths for the same three
 fiducials are $+0.087$, $-2.302$ and $+2.673$\,mm (Table~\ref{tab:inversion}).
 
 \begin{table}[t]
@@ -1135,10 +1168,10 @@ fiducials are $+0.087$, $-2.302$ and $+2.673$\,mm (Table~\ref{tab:inversion}).
 \textbf{Fid.} & $z_\mathrm{est}$ & \textbf{CT $z_\mathrm{rel}$} &
 \textbf{CT dist.} & $z_\mathrm{corr}$ & \textbf{resid.} \\
 \midrule
-1 & $+0.087$ & $0.000$    & 50.9 & $-6.157$  & $-6.157$ \\
-3 & $-2.302$ & $+0.719$   & 53.2 & $+3.920$  & $+3.201$ \\
-4 & $+2.673$ & $-20.023$  & 33.5 & $-17.066$ & $+2.957$ \\
-2 & $+3.011$ & ---        & ---  & $-18.492$ & --- \\
+1 & $+0.087$ & $0.000$    & 52.5 & $-5.987$  & $-5.987$ \\
+3 & $-2.302$ & $+0.893$   & 54.8 & $+3.005$  & $+2.112$ \\
+4 & $+2.673$ & $-19.678$  & 35.3 & $-16.800$ & $+2.878$ \\
+2 & $+3.011$ & ---        & ---  & $-18.213$ & --- \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1160,8 +1193,8 @@ greyscale reproduction.}
 Three findings follow (Fig.~\ref{fig:inversion}).
 
 \textbf{(i) The correlation is negative.} Pearson correlation between far-field
-relative depth and CT lens-to-fiducial distance is $r = -0.923$; against
-camera-frame CT depth it is $r=-0.891$. The depth channel varies inversely with
+relative depth and CT lens-to-fiducial distance is $r = -0.925$; against
+camera-frame CT depth it is $r=-0.895$. The depth channel varies inversely with
 true distance.
 
 \textbf{(ii) The ordering is reversed.} Ranked nearest to farthest, photometry
@@ -1171,20 +1204,20 @@ ordering; it is a systematic sign inversion.
 \textbf{(iii) Affine correction cannot rescue it.} Least-squares affine fitting
 onto the CT control points returns
 \begin{equation}
-z_\mathrm{corr} = -4.218\, z_\mathrm{est} - 5.791 \ \ \text{mm},
+z_\mathrm{corr} = -4.182\, z_\mathrm{est} - 5.623 \ \ \text{mm},
 \end{equation}
 whose \emph{negative slope} states the inversion algebraically. Even permitting
-the sign flip, the fit leaves \SI{4.36}{\milli\metre} RMS across a
-\SI{20.7}{\milli\metre} true span --- about \SI{21}{\percent} of the measured
+the sign flip, the fit leaves \SI{4.23}{\milli\metre} RMS across a
+\SI{20.6}{\milli\metre} true span --- about \SI{21}{\percent} of the measured
 range. With two free parameters and three control points, this residual reflects
 genuine lack of fit rather than an interpolation artifact.
 
 The corrected map is retained as a diagnostic only: an affine rescale with slope
-$-4.218$ amplifies the underlying far-field spatial bias roughly threefold while
+$-4.182$ amplifies the underlying far-field spatial bias roughly threefold while
 merely re-seating the fiducial values.
 
 This is the empirical case for near-light modelling. The failure is a predictable
-consequence of $\eta = 0.40$ (Sec.~\ref{sec:whyfar}), not of implementation, and
+consequence of $\eta = 0.39$ (Sec.~\ref{sec:whyfar}), not of implementation, and
 it cannot be repaired downstream: the artifact is spatially varying, so a global
 affine correction cannot remove it, and the tilt-plane alternative needs three
 non-collinear control fiducials, which only one session provides --- and there it
@@ -1193,9 +1226,9 @@ fixed instead.
 
 \subsection{Lens-to-fiducial distances}
 Eighteen distances were computed, of which three are CT-validated and fifteen
-photometric and flagged unreliable. The CT-validated values are \num{50.9},
-\num{53.2} and \SI{33.5}{\milli\metre}; these are trustworthy up to the
-${\sim}1.5\times$ scale ambiguity of Sec.~\ref{sec:ambiguity}, which is
+photometric and flagged unreliable. The CT-validated values are \num{52.5},
+\num{54.8} and \SI{35.3}{\milli\metre}; these are trustworthy up to the
+${\sim}1.48\times$ focal-length ambiguity of Sec.~\ref{sec:ambiguity}, which is
 multiplicative and therefore affects neither their ordering nor their ratios.
 The photometric values have mean \SI{48.6}{\milli\metre} and standard deviation
 \SI{4.4}{\milli\metre}.
@@ -1222,81 +1255,70 @@ most off-axis one. Both are small against the declared unreliability of these
 rows, but both are definite errors.
 \end{notebox}
 
-\subsection{A scale conflict no focal length resolves}\label{sec:scaleconflict}
-Section~\ref{sec:ambiguity} reported the focal-length discrepancy as a
-${\sim}1.53\times$ ambiguity. Cross-checking the pose solution against the bench
-geometry reveals something stronger, and we report it because a reviewer holding
-Table~\ref{tab:ct} and the fiducial pixel coordinates can reproduce it in a few
-lines.
+\subsection{Scale is depth-dependent: a resolved apparent conflict}
+\label{sec:scaleplane}
+Comparing the pose solution against the bench geometry appears at first to expose
+a gross inconsistency, and we report both the apparent conflict and its
+resolution because the trap is an easy one and a reviewer holding
+Table~\ref{tab:ct} can walk into it.
 
-Feeding $f_x=\SI{519}{pixel}$ --- itself \emph{derived} from the premise
-$d_\mathrm{work}=\SI{30}{\milli\metre}$ --- into the P3P solve returns a median
-axial depth of \SI{50.62}{\milli\metre}, \num{1.69} times that premise. This is
-not a focal-length ambiguity, because the P3P scale is fixed by the known metric
-size of the CT triangle, which makes the \emph{implied} field width
-$\Omega' = W Z/f_x$ almost independent of $f_x$ (Table~\ref{tab:fxsweep}).
+Solving the pose with the intrinsics of Eq.~\eqref{eq:fx} places the fiducials at
+a median axial depth near \SI{52}{\milli\metre}, from which the field width at
+the \emph{fiducial} plane is $W Z/f_x \approx \SI{62}{\milli\metre}$ ---
+seemingly \num{1.7} times the measured \SI{37}{\milli\metre}. Sweeping $f_x$ does
+not remove the discrepancy: because the pose scale is fixed by the known metric
+size of the CT triangle, the recovered depth scales with $f_x$ and the implied
+field width stays within \SIrange{59}{63}{\milli\metre} across
+$f_x \in \SIrange{300}{2000}{pixel}$.
+
+The resolution is that the two numbers describe \emph{different depth planes}.
+Under perspective the scale is $s(Z)=Z/f_x$, so a single instrument has as many
+``field widths'' as one cares to name planes. Evaluated with the corrected
+intrinsics (Table~\ref{tab:planes}), the field is \SI{37}{\milli\metre} at the
+near plane where it was gauged and \SI{62.6}{\milli\metre} at the fiducial
+plane. There is no contradiction --- only a quantity quoted without its plane.
 
 \begin{table}[t]
 \centering
-\caption{Implied field width as a function of assumed focal length. The recovered
-depth scales with $f_x$, so the implied field width is nearly invariant --- and
-never approaches the measured \SI{37}{\milli\metre}.}
-\label{tab:fxsweep}
+\caption{Field width and in-plane scale at each depth plane, $f_x =
+\SI{536}{pixel}$. The apparent \num{1.7}$\times$ conflict is the ratio between
+the first and third rows.}
+\label{tab:planes}
 \footnotesize
-\begin{tabular}{@{}lrrrrr@{}}
+\begin{tabular}{@{}lrrr@{}}
 \toprule
-$f_x$ (px, at $W{=}640$) & 300 & 519 & 794 & 1000 & 2000 \\
+\textbf{Plane} & $Z$ (mm) & \textbf{field} (mm) & \textbf{scale} (mm/px) \\
 \midrule
-median $Z$ (mm)          & 28.6 & 50.6 & 75.3 & 93.9 & 184.6 \\
-implied $\Omega'$ (mm)   & 61.1 & 62.4 & 60.7 & 60.1 & 59.1 \\
+near plane (gauged)     & 31.0 & 37.0 & 0.0578 \\
+nearest fiducial        & 35.3 & 42.2 & 0.0659 \\
+median fiducial         & 52.5 & 62.6 & 0.0978 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Across $f_x$ from \SIrange{300}{2000}{pixel} the implied field width stays within
-\SIrange{59.1}{62.8}{\milli\metre}, i.e. \numrange{1.60}{1.70} times the
-\SI{37.0}{\milli\metre} bench figure, and a root search finds \emph{no} $f_x$ in
-\SIrange{250}{1400}{pixel} at which $\Omega' = \SI{37}{\milli\metre}$. Neither
-candidate focal length reconciles the two. The conflict is with the field-width
-measurement, not with $f_x$.
+The bench geometry survives a further consistency check. Solving for the focal
+length at which the \emph{nearest} fiducial sits at the recess-corrected
+\SI{31.0}{\milli\metre} gives $f_x = \SI{497}{pixel}$, within \SI{7}{\percent} of
+Eq.~\eqref{eq:fx}; the two independent routes to $f_x$ --- bench lengths, and CT
+geometry anchored on the near plane --- agree to well inside the checkerboard
+discrepancy. Conversely, the hypotheses that the \SI{31}{\milli\metre} was gauged
+to the median fiducial or to the median axial depth are refuted outright: each
+requires $f_x \approx \SIrange{295}{322}{pixel}$ and places the nearest fiducial
+\SIrange{6}{10}{\milli\metre} from the lens, i.e. inside the instrument.
 
-The same tension appears independently in the fiducial geometry. The CT
-pairwise separations are \SI{17.18}{}, \SI{27.57}{} and
-\SI{26.20}{\milli\metre}; at the \SI{37}{\milli\metre} scale their ratios to the
-projected separations are \numrange{1.67}{1.99}, which requires the fiducial
-plane to be tilted \SI{53.8}{\degree} from the image plane. At the P3P-implied
-scale the ratios fall to \numrange{1.09}{1.30}, a far more natural configuration.
-
-\begin{todobox}{Unresolved --- two candidate explanations, and we cannot yet
-distinguish them}
-\textbf{(i) The \SI{37}{\milli\metre} field-width measurement is wrong} by a
-factor near \num{1.7}. \textbf{(ii) The CT-to-detection correspondence is wrong.}
-The detector assigns fiducial indices purely by image position (top-to-bottom,
-then left-to-right); that ordering bears no necessary relation to the CT
-numbering, yet the distance code assumes detection index $i$ equals CT fiducial
-$i$. This assumption is nowhere verified.
-
-Enumerating all \num{24} assignments of the three CT points to the four
-detections, and keeping only those that place fiducial~4 nearest with all
-distances physically possible, leaves eight candidates whose implied field widths
-are \SIlist{44.2;44.4;45.5;46.8;47.0;47.1;58.7;62.4}{\milli\metre}. The
-pipeline's own assignment is the \emph{worst} of the eight, and \textbf{none
-reaches \SI{37}{\milli\metre}}. Permutations that would imply ${\sim}\SI{37}{
-\milli\metre}$ each require either a fiducial at \SIrange{6.7}{7.8}{\milli\metre}
-from the lens (impossible) or fiducial~4 to be farthest, contradicting the
-confirmed physical ordering.
-
-\textbf{Required:} re-measure the field width, and independently establish the
-CT-to-detection correspondence --- then report the check either way. Until this
-is settled, absolute distances should be quoted with the conflict stated, not
-merely with the ${\sim}1.53\times$ focal ambiguity. See Appendix~\ref{app:open},
-items~C2 and~C8.
-\end{todobox}
-
-Note that this conflict does \emph{not} weaken the inversion result of
-Sec.~\ref{sec:inversion}: correlation and rank ordering are invariant under any
-positive rescaling of the CT distances, and the ordering constraint used to
-select the pose is unaffected.
+\begin{notebox}{What remains open}
+This resolves the field-width question but not the focal length: the
+checkerboard value stays \num{1.48}$\times$ above the measured-geometry value
+(Sec.~\ref{sec:ambiguity}), and absolute distances inherit that factor.
+Two consequences should be reported rather than buried. First, the implementation
+applies the single near-plane scale $s_0$ across the whole depth map and to the
+fiducial $x,y$ columns, although the fiducials sit at
+\SIrange{35}{55}{\milli\metre}; those columns are consequently understated by up
+to ${\sim}1.7\times$ and should be recomputed per fiducial as $Z/f_x$. Second,
+the corrected intrinsics shift the pose distances by \SI{3.3}{\percent}
+(Table~\ref{tab:inversion}) --- an indirect consequence of $f_x$ depending on
+$d_\mathrm{work}$, not a second application of the recess.
+\end{notebox}
 
 \subsection{Calibration self-tests}\label{sec:selftest}
 Both auxiliary modules ship self-tests on synthetic ground truth, runnable
@@ -1386,7 +1408,7 @@ pooled. \textbf{FRE} (diagnostic only): \TODO{F.FF} mm RMS --- reported for
 completeness and \emph{not} an accuracy claim.
 
 Sensitivity to the focal-length ambiguity must be reported as a paired analysis
-at $f_x = \num{519}$ and \SI{794}{pixel}, since a $1.5\times$ intrinsic error
+at $f_x = \num{536}$ and \SI{794}{pixel}, since a $1.48\times$ intrinsic error
 propagates directly into recovered scale and translation.
 \end{todobox}
 
@@ -1435,7 +1457,7 @@ for reasons unrelated to correctness.
 
 \section{Limitations}
 \begin{enumerate}
-\item The far-field depth channel is sign-inverted ($r=-0.923$), invalidating the
+\item The far-field depth channel is sign-inverted ($r=-0.925$), invalidating the
 depth column for all sessions and the fifteen photometric distances.
 \item Ground truth exists for one session and three fiducials ($n=3$). The
 correlation and ordering findings are unambiguous at this $n$; the affine
@@ -1475,9 +1497,9 @@ fiducial-anchored transfer into the CT frame.
 
 Measured against CT, the far-field approximation fails at this geometry not by a
 scale factor but in sign: the recovered depth is anti-correlated with truth
-($r=-0.923$) and reverses the ordering of all three CT-known fiducials, and no
+($r=-0.925$) and reverses the ordering of all three CT-known fiducials, and no
 affine correction recovers it. With an offset-to-working-distance ratio of
-\num{0.40}, this is the predictable consequence of applying a distant-source
+\num{0.39}, this is the predictable consequence of applying a distant-source
 model to a near-light rig. The calibrated near-light formulation is the
 corrective path; it is implemented and passes synthetic validation, and is
 blocked only on one session of calibration captures.
