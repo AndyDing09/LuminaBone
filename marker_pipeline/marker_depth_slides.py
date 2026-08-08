@@ -43,19 +43,46 @@ import bone_depth_batch as bd            # shared infra (scripts/reconstruction)
 import nearfield_lambertian as nf        # shared infra (scripts/reconstruction)
 import detect_trackers as dt             # sibling in marker_pipeline
 
+# Detect + solve on RAW frames. The real-calibration distortion is strong at the
+# edges (k3 ~ -12); undistortion (alpha=0 crop) silently drops edge markers, and
+# this depth is relative/uncalibrated anyway -- so undistortion isn't worth it.
+bd.UNDISTORT_INPUTS = False
+
 SHOTS_DIR = bd.project_path("Data_collection", "shots")
 OUT_DIR = bd.project_path("depth_outputs", "marker_depth_slides")
 
-# grab4.py drives four LEDs as two opposing pairs (1-3, 2-4). Placed
-# symmetrically around the lens: right / top / left / bottom.
-LED_NAME = {1: "RIGHT", 2: "TOP", 3: "LEFT", 4: "BOTTOM"}
-LED_AZIMUTH_DEG = {1: 0.0, 2: 90.0, 3: 180.0, 4: 270.0}
+# CONFIRMED LED->azimuth mapping (validated against CT on shots 4 & 5: far-field
+# depth correlates +0.97/+0.99, vs -0.73/-0.70 for the old 0/90/180/270 guess).
+# LED1=top, LED2=bottom, LED3=left, LED4=right; opposing pairs are (1,2) and (3,4)
+# -- NOT (1,3)/(2,4) as grab4.py's pair-imbalance check assumes.
+LED_NAME = {1: "TOP", 2: "BOTTOM", 3: "LEFT", 4: "RIGHT"}
+LED_AZIMUTH_DEG = {1: 90.0, 2: 270.0, 3: 180.0, 4: 0.0}
 ORDER = [1, 2, 3, 4]
 
 WORKING_DISTANCE_MM = nf.working_distance_mm()
 LIGHT_ELEVATION_DEG = math.degrees(math.atan2(WORKING_DISTANCE_MM,
                                               nf.LED_OFFSET_MM))
 MM_PER_IN = 25.4
+
+# Markers belonging to an ADJACENT vertebral segment that fall in the frame. The
+# spine phantom flexes at the discs, so markers from different levels must never
+# be registered together (project doc). Drop these by pixel position (robust to
+# re-numbering). Add entries as {shot: [(x_px, y_px), ...]}.
+EXCLUDE_MARKERS = {
+    "shot_005": [(55.8, 183.2)],
+    "shot_006": [(21.2, 228.5)],
+    "shot_008": [(27.0, 359.8)],
+}
+
+
+def drop_other_segment(shot, markers, radius=25.0):
+    """Remove markers near any EXCLUDE_MARKERS position for this shot."""
+    ex = EXCLUDE_MARKERS.get(shot, [])
+    if not ex:
+        return markers
+    return [m for m in markers
+            if not any((m[0] - ex_x) ** 2 + (m[1] - ex_y) ** 2 <= radius ** 2
+                       for ex_x, ex_y in ex)]
 
 
 def undistorted_bgr(path, long_edge=bd.WORK_LONG_EDGE):
@@ -72,9 +99,14 @@ def undistorted_bgr(path, long_edge=bd.WORK_LONG_EDGE):
     return bgr
 
 
-def find_markers(bgr_by_led):
-    """Detect trackers on each undistorted LED frame and consolidate across the
-    four frames (camera + markers are fixed; only the light moves)."""
+def find_markers(bgr_by_led, min_frames=3):
+    """Detect trackers on each LED frame and consolidate across the four frames
+    (camera + markers are fixed; only the light moves).
+
+    A real retroreflective marker returns light toward the lens under EVERY LED,
+    so it is detected in all four frames (n=4). A specular glint on bone depends
+    on the light direction, so it shows in only 1-2 frames. Requiring the cluster
+    to appear in >= min_frames of 4 drops those false positives."""
     rows = []
     for i in ORDER:
         cands = dt.detect(bgr_by_led[i])
@@ -83,7 +115,7 @@ def find_markers(bgr_by_led):
         for m in markers:
             rows.append(["s", f"led{i}", 0, m["x"], m["y"], m["r"], 0, 0, 0, 0])
     agg = dt.aggregate_by_shot(rows, merge_dist=35)   # [shot,id,x,y,r,n_frames]
-    return [(a[2], a[3], a[4], a[5]) for a in agg]     # (x, y, r, n_frames)
+    return [(a[2], a[3], a[4], a[5]) for a in agg if a[5] >= min_frames]
 
 
 def marker_depth(z, x, y, r):
@@ -125,7 +157,7 @@ def build_slide(shot, files):
     z_mm = z * mm_per_px
     lo_mm, hi_mm = lo * mm_per_px, hi * mm_per_px
 
-    markers = find_markers(bgr_by_led)
+    markers = drop_other_segment(shot, find_markers(bgr_by_led))
     mdepth = [marker_depth(z_mm, x, y, r) for (x, y, r, _n) in markers]
     # Full (x, y, z) per tracker, in mm across the measured field. x runs right,
     # y runs down (image frame, matching the 3-D axes); z is relative depth,
@@ -250,12 +282,18 @@ def discover_shots(folder):
 
 def main():
     import argparse
+    global OUT_DIR
     ap = argparse.ArgumentParser()
     ap.add_argument("--shots", nargs="*", default=None,
                     help="specific shot names, e.g. shot_009 (default: all)")
+    ap.add_argument("--shots-dir", default=SHOTS_DIR,
+                    help="folder of shot_* dirs (default Data_collection/shots)")
+    ap.add_argument("--out-dir", default=OUT_DIR,
+                    help="where slides + CSV are written")
     a = ap.parse_args()
+    OUT_DIR = a.out_dir
 
-    groups = discover_shots(SHOTS_DIR)
+    groups = discover_shots(a.shots_dir)
     if a.shots:
         groups = {k: v for k, v in groups.items() if k in a.shots}
     if not groups:
