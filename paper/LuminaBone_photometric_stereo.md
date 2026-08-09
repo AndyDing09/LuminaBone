@@ -32,13 +32,13 @@ model removed the systematic "bowl" artifact that far-field integration introduc
 on this geometry (plane-fit deviation reduced from 6.9 to 5.0 mm on the reference
 level; the worst far-field level improved from 6.6 to 1.7 mm FRE). The inverse-
 square baseline failed (7.8–9.6 mm, with physically inverted depth) because it
-conflates albedo with range on textured bone. We characterise a working-distance
-envelope of ≈55 mm beyond which the near-coaxial baseline (≈3° at 110 mm) provides
-insufficient tilt signal.
+conflates albedo with range on textured bone. All levels were imaged at a similar
+working distance (51–60 mm); the two non-millimetre levels failed for non-distance
+reasons (three fiducials; an unresolved near-field divergence), reported in full.
 
 **Conclusion.** Near-coaxial monocular photometric stereo yields per-vertebra,
-CT-registered surface reconstructions at millimetre accuracy within a defined
-working envelope, without added intraoperative radiation or tracking hardware. The
+CT-registered surface reconstructions at millimetre accuracy on well-conditioned
+levels, without added intraoperative radiation or tracking hardware. The
 dominant residual error is the use of assumed rather than calibrated LED positions,
 which defines the clear next step.
 
@@ -82,10 +82,10 @@ requires a near-field point-source model.
 LED endoscope that removes the far-field bowl; (2) a per-vertebra CT-registration
 protocol using dual-modality retroreflective fiducials, PnP pose, and affine depth
 calibration, validated by 3-D FRE; (3) a controlled comparison of far-field, near-
-field, and inverse-square models on the same CT-validated data; (4) a
-characterisation of the working-distance envelope set by the near-coaxial baseline;
-and (5) a transparent failure analysis (under-constrained pose, envelope limit)
-that isolates the single dominant error source — assumed LED positions — as the
+field, and inverse-square models on the same CT-validated data; and (4) a
+transparent failure analysis (three fiducials under-constrain PnP; an unresolved
+near-field divergence) that isolates the single dominant error source — assumed LED
+positions — as the
 next lever.
 
 ## 2. Related work
@@ -200,18 +200,18 @@ were reconstructed and registered.
 
 ### 4.1 Registration accuracy: far-field vs near-field
 
-| Level | Working dist. (approx.) | Far-field FRE | Near-field FRE |
-|------:|:--:|:--:|:--:|
-| 4 | near | 1.54 mm | **1.72 mm** |
-| 5 | near | 1.22 mm | **1.32 mm** |
-| 6 | ~55 mm | 6.57 mm | **1.74 mm** |
-| 7 | far (3 markers) | 11.14 mm | 9.72 mm |
-| 8 | ~110 mm | 5.66 mm | *degenerate* |
+| Level | WD (mm) | Far-field FRE | Near-field FRE | Note |
+|------:|:--:|:--:|:--:|:--|
+| 4 | 60.0 | 1.54 mm | **1.72 mm** | |
+| 5 | 55.4 | 1.22 mm | **1.32 mm** | |
+| 6 | 58.9 | 6.57 mm | **1.74 mm** | bowl removed |
+| 7 | 58.6 | 11.14 mm | 9.72 mm | 3 markers |
+| 8 | 51.5 | 5.66 mm | *diverged* | near-field |
 
-On the three levels within the working envelope (4–6) the near-field model gives
-**1.2–1.7 mm** 3-D FRE with only four fiducials each. The near shots (4, 5) were
-already good under far-field; the decisive gain is level 6, where near-field
-modelling reduced FRE from 6.6 to 1.7 mm.
+All five levels were imaged at a similar working distance (51–60 mm). On the three
+well-conditioned 4-marker levels (4–6) the near-field model gives **1.2–1.7 mm** 3-D
+FRE. The near shots (4, 5) were already good under far-field; the decisive gain is
+level 6, where near-field modelling reduced FRE from 6.6 to 1.7 mm.
 
 ### 4.2 The far-field bowl and its correction
 
@@ -231,15 +231,16 @@ intrinsic: inverse-square assumes constant albedo, so dark bone texture reads as
 "far". This is the failure photometric stereo is designed to avoid, and it
 quantifies why the normal-based solve is necessary.
 
-### 4.4 Working-distance envelope
+### 4.4 Failure modes
 
-Accuracy degrades with distance for a geometric reason, not a modelling one. At
-110 mm (level 8) the 6 mm ring subtends only ≈3° at the surface; the tilt-encoding
-signal collapses into noise and the near-field solve becomes degenerate. Level 7 is
-limited separately by having only three fiducials, which under-constrains PnP.
-Within ≈55 mm working distance (through level 6) the method is reliable. This
-envelope is a property of the near-coaxial baseline and should be reported as an
-operating specification, not hidden.
+All five levels were imaged at a similar working distance (51–60 mm), so the two
+failures are **not** distance-driven. Level 7 has only three fiducials, which
+under-constrains the PnP pose (P3P admits up to four solutions). Level 8 has the
+**best** marker geometry (least coplanar), yet the near-field iteration diverged and
+its confidence mask collapsed, while far-field on the same data stayed stable
+(5.66 mm) — an unresolved solver-robustness issue, reported rather than omitted.
+Because working distance was effectively fixed, its effect on accuracy could not be
+characterised here; a controlled distance sweep is future work.
 
 ### 4.5 Per-segment vs. combined registration
 
@@ -279,11 +280,12 @@ makes bone tractable.
 2. **Near-coaxial low SNR.** The ≈15% lateral signal compresses recovered relief
    (near-field relief under-estimates the CT range), an intrinsic cost of the small
    baseline.
-3. **Working envelope.** Reliable only to ≈55 mm; deeper fields need a larger
-   effective baseline or an active illumination change.
-4. **Fiducial count / specularity.** Three markers under-constrain pose (level 7);
-   retroreflective markers are specular and are inpainted/masked, leaving small
-   holes at the marker sites.
+3. **Working-distance characterisation missing.** All levels were imaged at ~55 mm,
+   so accuracy vs. working distance could not be measured; a controlled distance
+   sweep is needed.
+4. **Fiducial count / specularity / robustness.** Three markers under-constrain pose
+   (level 7); the near-field solve diverged on level 8 despite good geometry
+   (unresolved); retroreflective markers are inpainted, leaving small holes.
 5. **Bench validation.** Results are on an instrumented specimen; in-vivo wet,
    bleeding fields will be harder and are future work.
 
@@ -296,7 +298,7 @@ existing scope could reduce reliance on intraoperative radiation for re-registra
 
 A near-coaxial monocular endoscope, driven by four-LED near-field photometric
 stereo and anchored to CT through dual-modality fiducials, reconstructs the exposed
-spinal surface to **1.2–1.7 mm** per-vertebra within a ≈55 mm working envelope —
+spinal surface to **1.2–1.7 mm** per-vertebra on well-conditioned levels —
 competitive with clinical surface registration and better than reported in-vivo
 endoscopic photometric stereo, without added radiation or tracking hardware. The
 far-field bowl is identified and removed; the inverse-square shortcut is shown to be
@@ -339,7 +341,7 @@ point-based registration," *IEEE TMI*, 17(5), 1998.
 - **International Journal of Computer Assisted Radiology and Surgery (IJCARS)** —
   IF ≈2.8, **Q1** (SJR). Scope is *exactly* this: computer-assisted interventions,
   surgical navigation, intraoperative guidance, registration. A CT-registered
-  optical surface for spine navigation with an honest accuracy/envelope study is a
+  optical surface for spine navigation with an honest accuracy study is a
   natural IJCARS paper; it also feeds the IPCAI/CARS community. **Recommended first
   submission.** (scijournal / journalmetrics)
 
@@ -364,8 +366,9 @@ point-based registration," *IEEE TMI*, 17(5), 1998.
    Report per-marker and RMS, and compare to [6,10] as in §5. ✔
 2. **Ablation / model comparison** — far-field vs near-field vs inverse-square is a
    textbook ablation; keep it. ✔
-3. **Honest failure and limits** — the envelope and the 3-marker/level-8 failures
-   *strengthen* the paper; reviewers punish hidden limitations, not disclosed ones.
+3. **Honest failure and limits** — the 3-marker (level 7) and near-field-divergence
+   (level 8) failures *strengthen* the paper; reviewers punish hidden limitations,
+   not disclosed ones.
 4. **Reproducibility** — release the pipeline (`marker_pipeline/`), the meshes, and
    the fiducial protocol. Q1 increasingly expects code/data.
 5. **The one thing to add before a top-tier try** — a *calibrated* LED forward model

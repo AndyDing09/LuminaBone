@@ -98,10 +98,12 @@ hr{border:0;border-top:1px solid var(--rule);margin:40px 0}
     than reported in-vivo endoscopic photometric stereo (&lt;3&nbsp;mm). Near-field
     modelling removed the systematic &ldquo;bowl&rdquo; of far-field integration (worst
     far-field level improved from 6.6 to 1.7&nbsp;mm FRE). The inverse-square baseline
-    failed (7.8&ndash;9.6&nbsp;mm, physically inverted depth). A working-distance
-    envelope of &asymp;55&nbsp;mm is characterised.</p>
+    failed (7.8&ndash;9.6&nbsp;mm, physically inverted depth). All levels were imaged at
+    a similar working distance (51&ndash;60&nbsp;mm); the two non-millimetre levels
+    failed for non-distance reasons (three fiducials; an unresolved near-field
+    divergence), reported in full.</p>
     <p><b>Conclusion.</b> Near-coaxial monocular photometric stereo yields per-vertebra,
-    CT-registered surfaces at millimetre accuracy within a defined envelope, without
+    CT-registered surfaces at millimetre accuracy on well-conditioned levels, without
     added radiation or tracking hardware; the dominant residual is the use of assumed
     rather than calibrated LED positions.</p>
   </div>
@@ -132,9 +134,9 @@ hr{border:0;border-top:1px solid var(--rule);margin:40px 0}
   near-coaxial LED endoscope that removes the far-field bowl; (2) a per-vertebra CT
   registration protocol using dual-modality fiducials, PnP pose, and affine depth
   calibration, validated by 3-D FRE; (3) a controlled far-field / near-field /
-  inverse-square comparison on CT-validated data; (4) a characterisation of the
-  working-distance envelope set by the near-coaxial baseline; (5) a transparent failure
-  analysis isolating assumed LED positions as the dominant residual error.</p>
+  inverse-square comparison on CT-validated data; (4) a transparent failure analysis
+  (three fiducials under-constrain PnP; an unresolved near-field divergence) and
+  isolation of assumed LED positions as the dominant residual error.</p>
 
   <h2><span class="n">2</span>Related work</h2>
   <p>Woodham's far-field photometric stereo [1] recovers normals from &ge;3 directional
@@ -190,15 +192,16 @@ hr{border:0;border-top:1px solid var(--rule);margin:40px 0}
   <h2><span class="n">4</span>Results</h2>
   <div class="tablewrap"><table>
     <caption>Table 1 &mdash; 3-D fiducial registration error (FRE), far-field vs
-    near-field, over five vertebral levels. Levels 4&ndash;6 lie within the envelope.</caption>
-    <thead><tr><th>Level</th><th>Working dist.</th><th class="num">Far-field FRE</th>
-    <th class="num">Near-field FRE</th></tr></thead>
+    near-field. All levels imaged at a similar working distance (51&ndash;60&nbsp;mm);
+    levels 4&ndash;6 are the well-conditioned 4-marker cases.</caption>
+    <thead><tr><th>Level</th><th class="num">WD (mm)</th><th class="num">Far-field FRE</th>
+    <th class="num">Near-field FRE</th><th>Note</th></tr></thead>
     <tbody>
-      <tr><td>4</td><td>near</td><td class="num">1.54 mm</td><td class="num win">1.72 mm</td></tr>
-      <tr><td>5</td><td>near</td><td class="num">1.22 mm</td><td class="num win">1.32 mm</td></tr>
-      <tr><td>6</td><td>~55 mm</td><td class="num">6.57 mm</td><td class="num win">1.74 mm</td></tr>
-      <tr><td>7</td><td>far (3 markers)</td><td class="num">11.14 mm</td><td class="num">9.72 mm</td></tr>
-      <tr><td>8</td><td>~110 mm</td><td class="num">5.66 mm</td><td class="num fail">degenerate</td></tr>
+      <tr><td>4</td><td class="num">60.0</td><td class="num">1.54 mm</td><td class="num win">1.72 mm</td><td></td></tr>
+      <tr><td>5</td><td class="num">55.4</td><td class="num">1.22 mm</td><td class="num win">1.32 mm</td><td></td></tr>
+      <tr><td>6</td><td class="num">58.9</td><td class="num">6.57 mm</td><td class="num win">1.74 mm</td><td>bowl removed</td></tr>
+      <tr><td>7</td><td class="num">58.6</td><td class="num">11.14 mm</td><td class="num">9.72 mm</td><td>3 markers</td></tr>
+      <tr><td>8</td><td class="num">51.5</td><td class="num">5.66 mm</td><td class="num fail">diverged</td><td>near-field</td></tr>
     </tbody>
   </table></div>
 
@@ -233,12 +236,16 @@ hr{border:0;border-top:1px solid var(--rule);margin:40px 0}
   depth slope. The cause is intrinsic &mdash; inverse-square assumes constant albedo, so
   dark bone reads as &ldquo;far&rdquo; &mdash; quantifying why the normal-based solve is
   necessary.</p>
-  <h3>4.3 Working-distance envelope</h3>
-  <p>At 110&nbsp;mm the 6&nbsp;mm ring subtends only &asymp;3&deg;; tilt signal collapses
-  and the near-field solve degenerates (level&nbsp;8). Level&nbsp;7 is limited separately
-  by only three fiducials (under-constrained PnP). The method is reliable within
-  &asymp;55&nbsp;mm &mdash; a property of the near-coaxial baseline, reported as an
-  operating specification.</p>
+  <h3>4.3 Failure modes</h3>
+  <p>All five levels were imaged at a similar working distance (51&ndash;60&nbsp;mm),
+  so the two failures are <em>not</em> distance-driven. Level&nbsp;7 has only three
+  fiducials, leaving the PnP pose under-constrained (P3P admits up to four solutions).
+  Level&nbsp;8 has the <em>best</em> marker geometry, yet the near-field iteration
+  diverged and its confidence mask collapsed, while the far-field solve on the same
+  data stayed stable (5.66&nbsp;mm) &mdash; an unresolved solver-robustness issue,
+  reported rather than omitted. Because working distance was effectively fixed here,
+  its effect on accuracy could not be characterised; a controlled distance sweep is
+  future work.</p>
 
   <h2><span class="n">5</span>Discussion</h2>
   <div class="tablewrap"><table>
@@ -272,8 +279,8 @@ hr{border:0;border-top:1px solid var(--rule);margin:40px 0}
   <h2><span class="n">6</span>Conclusion</h2>
   <p>A near-coaxial monocular endoscope, driven by four-LED near-field photometric
   stereo and anchored to CT through dual-modality fiducials, reconstructs the exposed
-  spinal surface to <b>1.2&ndash;1.7&nbsp;mm</b> per vertebra within a &asymp;55&nbsp;mm
-  envelope &mdash; competitive with clinical surface registration and better than
+  spinal surface to <b>1.2&ndash;1.7&nbsp;mm</b> per vertebra on well-conditioned
+  levels &mdash; competitive with clinical surface registration and better than
   reported in-vivo endoscopic photometric stereo, without added radiation or tracking
   hardware. The far-field bowl is removed; the inverse-square shortcut is shown
   inapplicable to textured bone; and the dominant residual is localised to assumed LED
@@ -304,7 +311,7 @@ hr{border:0;border-top:1px solid var(--rule);margin:40px 0}
     and IEEE TMI (IF&nbsp;&asymp;10, top Q1).</p>
     <p><b>What Q1 reviewers will expect:</b> CT ground-truth metric (have it: 3-D FRE);
     a model ablation (have it: far / near / inverse-square); disclosed limits (have them:
-    envelope, 3-marker level); reproducible code (release <code>marker_pipeline/</code>);
+    the two failure modes); reproducible code (release <code>marker_pipeline/</code>);
     and &mdash; before a top-tier attempt &mdash; a <em>calibrated</em> LED forward model
     plus &ge;2 specimens to convert &ldquo;millimetre on a bench&rdquo; into a clinical
     accuracy claim.</p>
