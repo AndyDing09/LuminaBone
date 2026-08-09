@@ -235,8 +235,15 @@ At a working distance $D$ each LED subtends a half-angle
 \label{eq:alpha}
 \end{equation}
 so at $D=\SI{55}{\milli\meter}$, $\alpha\approx\ang{6.3}$: the lateral (tilt-encoding)
-component of each light direction is only $\sin\alpha\approx0.11$. The mapping from
-frame index to azimuth must be correct---an incorrect assignment produced normals
+component of each light direction is only $\sin\alpha\approx0.11$. This small lateral
+term also conditions the solve. A far-field light on the ring has direction
+$\vL_s=[\sin\alpha\cos\phi_s,\,\sin\alpha\sin\phi_s,\,\cos\alpha]^{\!\top}$, so the two
+in-plane singular values of the stacked matrix $\bm L$ scale with $\sin\alpha$ while
+the axial one scales with $\cos\alpha$; the condition number therefore grows as
+$\cot\alpha\approx D/a_r$. Image noise is amplified into the tangential normal
+components by $\approx 1/\sin\alpha$, which both compresses the recovered relief and
+makes the solution sensitive to errors in the assumed light geometry---the two effects
+seen in the results. The mapping from frame index to azimuth must be correct---an incorrect assignment produced normals
 whose integrated depth was \emph{anti}-correlated with CT ($r\approx-0.73$), whereas
 the correct wiring (LED1\,$\to$\,\ang{90}, LED2\,$\to$\,\ang{270},
 LED3\,$\to$\,\ang{180}, LED4\,$\to$\,\ang{0}) gives $r\approx+0.97/{+}0.99$; the
@@ -392,6 +399,34 @@ Level & WD (mm) & $\alpha$ (\si{\degree}) & Coplanarity (mm) & \# markers\\
 6 & 58.9 & 5.9 & 0.58 & 4\\
 7 & 58.6 & 5.9 & 0.00 & 3\\
 8 & 51.5 & 6.7 & 1.42 & 4\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{LED Index--Azimuth Calibration}
+The frame-to-azimuth mapping (Sec.~\ref{sub:led}) was resolved empirically by scoring
+all $4!{=}24$ index-to-azimuth assignments: for each, a far-field surface was
+reconstructed and its depth at the fiducials was correlated with the CT marker depth.
+Table~\ref{tab:perm} lists the extremes over the two near levels. The physical wiring
+maximises the correlation (mean $r{=}{+}0.98$), whereas the diametrically opposite
+labelling \emph{inverts} the surface ($r{=}{-}0.98$). A mislabelling is thus not a
+small perturbation but a sign flip of the recovered geometry---a silent, catastrophic
+failure mode for any multi-LED rig---so this check should precede reconstruction.
+
+\begin{table}[t]\centering
+\caption{LED index$\to$azimuth permutation study: correlation of far-field depth with
+CT marker depth (top and bottom of the 24 permutations).}
+\label{tab:perm}\small\sisetup{table-format=1.2}
+\begin{tabular}{ccccrr}
+\toprule
+LED1 & LED2 & LED3 & LED4 & $r$ (lvl 4) & $r$ (lvl 5)\\
+\midrule
+\ang{90} & \ang{270} & \ang{180} & \ang{0} & $+0.97$ & $+0.99$\ \textbf{(wiring)}\\
+\ang{180} & \ang{270} & \ang{90} & \ang{0} & $+0.92$ & $+0.91$\\
+\ang{180} & \ang{90} & \ang{270} & \ang{0} & $+0.88$ & $+0.86$\\
+\multicolumn{6}{c}{\dots}\\
+\ang{0} & \ang{90} & \ang{270} & \ang{180} & $-0.92$ & $-0.91$\\
+\ang{270} & \ang{90} & \ang{0} & \ang{180} & $-0.97$ & $-0.99$\\
 \bottomrule
 \end{tabular}
 \end{table}
