@@ -91,7 +91,8 @@ is also \emph{near-coaxial}: with the LEDs \SI{6}{\milli\meter} off-axis, each l
 is only $\approx\!\ang{6}$ from the optical axis, so the tilt-encoding lateral
 component of every light vector is small. Applying the far-field model to this rig
 integrates the mis-modelled brightness gradient into a systematic, low-frequency
-``bowl'' that a global scale/offset cannot remove.
+``bowl'' that a global scale/offset cannot remove. Fig.~\ref{fig:system} summarises
+the rig geometry and the processing pipeline.
 
 This paper documents a complete pipeline that addresses the geometry directly and
 validates the result quantitatively against CT. The main contributions are
@@ -111,41 +112,85 @@ together isolate assumed LED positions as the dominant residual error
 (Sec.~\ref{sec:exp}).
 \end{itemize}
 
+\begin{figure*}[t]\centering
+\includegraphics[width=0.92\textwidth]{figures/fig1_system.png}
+\caption{System overview. (a) The four LEDs sit on a ring of radius
+$a_r{=}\SI{6.05}{\milli\meter}$ about the optical axis; at a working distance
+$D\approx\SI{55}{\milli\meter}$ each subtends a half-angle $\alpha\approx\ang{6}$, so
+the tilt-encoding lateral component of every light direction is only
+$\sin\alpha\approx0.11$ (\emph{near-coaxial}), and the direction and $1/r^2$ fall-off
+vary across the field (\emph{near-field}). (b) Processing pipeline: four single-LED
+frames drive a near-field photometric-stereo solve iterated with a CT-anchored depth,
+integrated to a relative surface, then registered to CT by a Perspective-$n$-Point
+pose and an affine depth calibration, and scored by three-dimensional fiducial
+registration error.}
+\label{fig:system}
+\end{figure*}
+
 %=======================================================================
 \section{Related Work}
 A pixel intensity $I_j$ of a surface point with unit normal $\vn$, illuminated by
-light $j$ with direction $\vl_j$ and intensity $e$, obeys the reflectance model
-$I_j=e\,\rho(\vn,\vl_j,\bm v)\max(\vn^{\!\top}\vl_j,0)+\varepsilon_j$, with albedo
-$\rho$ and an error term $\varepsilon_j$ for shadows, noise, and inter-reflections.
-Recovering $\vn$ from several such observations is photometric stereo.
+light $j$ with direction $\vl_j$, view direction $\bm v$, and intensity $e$, obeys the
+general reflectance model
+$I_j=e\,\rho(\vn,\vl_j,\bm v)\max(\vn^{\!\top}\vl_j,0)+\varepsilon_j$, with a
+bidirectional reflectance distribution function (BRDF) $\rho$ and an error term
+$\varepsilon_j$ absorbing cast shadows, sensor noise, and inter-reflections.
+Recovering $\vn$ from several such observations under known lights is photometric
+stereo. We review the aspects relevant to a near-coaxial endoscopic rig imaging bone:
+the reflectance problem, the near-field illumination problem, and the surgical
+surface-registration context.
 
 \subsection{Lambertian and Non-Lambertian Photometric Stereo}
-Under the Lambertian assumption Woodham~\cite{woodham} reduced the model to a linear
-system solvable by least squares; the recovered gradient field is then integrated to
-depth, classically by Frankot--Chellappa~\cite{fc}. Extending photometric stereo to
-real, non-Lambertian materials has followed several strategies---robust
-outlier-rejection methods that treat specularity and shadow as sparse anomalies,
-analytic and empirical BRDF models, example-based methods, and, more recently,
-learning-based networks that regress normals directly from the observations. These
-approaches target the \emph{reflectance} challenge; they largely retain the
-\emph{far-field} illumination assumption.
+Under the Lambertian assumption ($\varepsilon_j{=}0$, view-independent diffuse
+reflectance) Woodham~\cite{woodham} reduced the model to a linear system solvable in
+closed form by least squares; the recovered gradient field is then integrated to a
+depth map, classically by the frequency-domain Frankot--Chellappa
+projection~\cite{fc}. Real surfaces are rarely Lambertian, and extending photometric
+stereo to general reflectance has followed four broad strategies. \emph{Robust}
+methods treat specularity and shadow as sparse outliers over a dominant diffuse
+component and discard them, but require many images and struggle with broad, soft
+specular lobes. \emph{Analytic and empirical BRDF} methods fit parametric reflectance
+models, which are accurate only for limited material classes. \emph{Example-based}
+methods transfer normals from a reference object of known shape---classically a
+sphere---imaged under the same lighting. \emph{Learning-based} methods regress normals
+directly from the observations and handle diverse BRDFs, but still degrade on strong
+specularity and high-frequency structure and require large training sets. Common to
+all of these is that they attack the \emph{reflectance} term while retaining the
+\emph{far-field}, constant-direction illumination assumption. Bone is a mixed case: it
+is largely diffuse with subsurface scatter but becomes specular near normal incidence,
+so an albedo-invariant diffuse solve with specular inpainting is a reasonable model,
+and the outstanding difficulty on our rig is the illumination geometry rather than the
+BRDF.
 
 \subsection{Near-Field and LED-Based Illumination}
-When the light source is close to the surface, direction and intensity vary
-per-pixel. Qu\'eau et al.~\cite{queau} give a full LED forward model (position,
-direction, anisotropy, fall-off) with a calibration procedure, and robust point-light
-\emph{position} calibration has been reported to millimetre accuracy~\cite{aocalib}.
-Accurate knowledge of the source geometry is essential in this regime, because errors
-in the assumed light position propagate directly into the recovered surface---the
-observation that motivates the failure analysis of this paper.
+When the source is close to the surface, its direction and intensity vary per pixel
+and the far-field model no longer holds. Qu\'eau et al.~\cite{queau} give a complete
+LED forward model---source position, principal direction, angular anisotropy, and
+inverse-square fall-off---together with a calibration procedure and a numerical solver,
+and demonstrate that near-field modelling is necessary for close-range rigs. Because
+the recovered surface depends directly on the assumed source geometry, calibrating the
+light \emph{position} is critical; robust point-light position calibration from planar
+targets has been reported with errors below \SI{2.7}{\milli\meter}~\cite{aocalib}. Our
+rig is an extreme instance of this regime: the sources are not only near-field but
+\emph{near-coaxial} ($\alpha\approx\ang{6}$), which both mandates the near-field model
+and makes the solution unusually sensitive to the assumed LED positions---the
+observation that frames our failure analysis and our identification of light-position
+calibration as the dominant residual.
 
 \subsection{Surgical Surface Reconstruction and Registration}
-Optical reconstruction of exposed bone and its registration to CT is established with
-\emph{other} modalities---notably stereovision and structured light in open
-surgery---and quality is quantified by fiducial/target registration error following
-Fitzpatrick et al.~\cite{fitzpatrick}, with rigid alignment via least-squares pose or
-ICP. The present work targets the same registration goal from a single near-coaxial
-endoscopic camera using photometric stereo, and validates it per vertebra.
+Reconstructing an exposed surface intraoperatively and registering it to preoperative
+CT is well established, but with \emph{other} optical modalities. Stereovision and
+structured-light systems recover the exposed spine in \emph{open} surgery and register
+it rigidly (or non-rigidly, per level) to CT for navigation. These systems require a
+stereo baseline or a projector and an open field; photometric stereo instead needs a
+single camera and a ring of LEDs, at the cost of the near-coaxial difficulty studied
+here. Registration quality is universally quantified by fiducial and target
+registration error following Fitzpatrick et al.~\cite{fitzpatrick}, with rigid
+alignment computed from point correspondences or by iterative closest point. In
+parallel, in-vivo endoscopic photometric stereo has been demonstrated on soft tissue.
+The present work sits between these: photometric stereo, as in the endoscopic soft-
+tissue line, but on \emph{bone} and validated against CT per vertebra, as in the
+surgical-navigation line.
 
 %=======================================================================
 \section{Proposed Method}\label{sec:method}
@@ -390,6 +435,30 @@ fiducials (open) on CT ground truth (crosses). FRE \SI{1.74}{\milli\meter}, vers
 \SI{6.57}{\milli\meter} far-field.}
 \label{fig:shot6}
 \end{figure}
+
+Table~\ref{tab:permarker} gives the per-fiducial near-field errors on the
+well-conditioned levels. The errors are sub-millimetre to low-millimetre with no
+single dominant outlier, consistent with a residual dominated by the assumed LED
+positions and the near-coaxial relief compression rather than by one bad
+correspondence. As a rigidity check, the five per-vertebra meshes (\num{432757}
+vertices in total) were also concatenated into a single CT-frame surface; because the
+specimen was static between captures, the patches remain mutually consistent, but this
+combined view is used only as a check and not for accuracy reporting, since the spine
+flexes between levels in vivo.
+
+\begin{table}[t]\centering
+\caption{Per-fiducial near-field error (mm) on the well-conditioned levels.}
+\label{tab:permarker}\small\sisetup{table-format=1.2}
+\begin{tabular}{lccccc}
+\toprule
+Level & m1 & m2 & m3 & m4 & RMS\\
+\midrule
+4 & 2.80 & 1.75 & 0.20 & 0.92 & 1.72\\
+5 & 0.56 & 1.14 & 1.90 & 1.32 & 1.32\\
+6 & 1.01 & 2.42 & 2.16 & 0.73 & 1.74\\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Inverse-Square Baseline}
 With identical CT anchoring, the inverse-square estimator~\eqref{eq:invsq} gave
