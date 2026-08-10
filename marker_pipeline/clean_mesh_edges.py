@@ -32,7 +32,8 @@ OUTDIR = bd.project_path("depth_outputs", "ct_registered")
 def read_ply(path):
     L = open(path).read().splitlines()
     nv = [int(l.split()[2]) for l in L if l.startswith("element vertex")][0]
-    nf = [int(l.split()[2]) for l in L if l.startswith("element face")][0]
+    nfl = [int(l.split()[2]) for l in L if l.startswith("element face")]
+    nf = nfl[0] if nfl else 0                            # point clouds have no faces
     h = L.index("end_header") + 1
     V = np.array([[float(x) for x in L[h + i].split()] for i in range(nv)])  # x y z r g b
     F = np.array([[int(x) for x in L[h + nv + i].split()[1:4]] for i in range(nf)], int)
@@ -100,6 +101,9 @@ def clean(V, F, k=4.0, max_edge=None, min_comp=200, peel=1):
 
 def run(inp, outp, **kw):
     V, F = read_ply(inp)
+    if not len(F):                                       # point cloud, nothing to clean
+        print(f"{os.path.basename(inp)}: no faces (point cloud) -- skipped")
+        return
     V2, F2, thr, n_after_edge = clean(V, F, **kw)
     write_ply(outp, V2, F2)
     print(f"{os.path.basename(inp)}: {len(F)}->{len(F2)} faces "
