@@ -1,0 +1,4 @@
+{
+ "mu": 8.0,
+ "note": "hardware emission exponent; validated by truth-test on shots 4/5 (CT-validated surfaces both prefer mu~8); TODO replace with bench white-target calibration"
+}

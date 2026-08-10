@@ -59,7 +59,12 @@ OUT = bd.project_path("depth_outputs", "ct_registered")
 os.makedirs(OUT, exist_ok=True)
 
 DS = 4                                   # downsample factor for the (b,s) search
-B_RANGE = (20.0, 110.0)                  # plausible working distances (rig design)
+# The working-distance prior is the fixed-focus endoscope's depth-of-field
+# band: a bench-measurable LENS property (images are only sharp in this range,
+# which is why every capture sits near ~55 mm). It is NOT taken from CT. The
+# photometric objective is shallow and multi-modal in (b, mu) on this
+# near-coaxial rig; the focus band excludes the false close-and-flat basin.
+B_RANGE = (45.0, 70.0)
 S_RANGE = (0.10, 5.0)                    # relief gain bounds (s~1 expected)
 MU_RANGE = (0.0, 14.0)                   # LED emission exponent cos^mu bounds
                                          # (mu ~ 11 for a 20-deg half-angle LED)
@@ -147,15 +152,23 @@ class Objective:
         self.cx, self.cy = CX / DS, CY / DS
         self.zt = np.zeros(self.Ms.shape[:2])            # ztilde, downsampled
 
-    def set_relief(self, ztilde):
-        zt = _shrink(ztilde.astype(np.float32), DS).astype(np.float64)
+    def set_relief(self, ztilde, zt_fx):
+        """store relief NORMALISED by the focal length of the grid whose
+        pixels its gradients were integrated over (zt_fx). This makes the
+        depth family resolution-invariant: relief_mm = s * b * (ztilde/zt_fx)
+        means the same surface whether the search runs at DS or full res.
+        (An earlier version used self.fx here -- the search then optimised a
+        surface with DSx the relief of the one reconstruct() built.)"""
+        h, w = self.Ms.shape[:2]
+        zt = cv2.resize(ztilde.astype(np.float32), (w, h),
+                        interpolation=cv2.INTER_AREA).astype(np.float64)
         zt -= np.median(zt[self.mask])
         # clip runaway border ramps so they cannot drive the search
         lo, hi = np.percentile(zt[self.mask], [1, 99])
-        self.zt = np.clip(zt, lo, hi)
+        self.zt = np.clip(zt, lo, hi) / zt_fx
 
     def depth(self, b, s):
-        return b + s * (b / self.fx) * self.zt
+        return b * (1.0 + s * self.zt)
 
     def __call__(self, b, s, mu=0.0):
         """tied-normal shading misfit of the candidate surface D(b, s).
@@ -189,14 +202,27 @@ class Objective:
                    np.maximum((w * pred * pred)[msk].sum(0), 1e-12))
         pred = rho[..., None] * m * gam
         r = (w * np.abs(I - pred)).sum(-1) / np.maximum((w * I).sum(-1), 1e-9)
-        return float(r[self.mask].mean())
+        out = float(r[self.mask].mean())
+        return out if np.isfinite(out) else 1e9          # NaN poisons min()/keep-best
 
 
-def search_bs(E, b0=None, mu0=None):
-    """coarse grid + Nelder-Mead refine of (b, s, mu). CT-free."""
+def search_bs(E, b0=None, mu0=None, mu_fixed=None):
+    """coarse grid + Nelder-Mead refine of (b, s[, mu]). CT-free.
+
+    mu_fixed pins the LED emission exponent (it is a property of the rig, not
+    the scene -- letting each shot pick its own mu opens a (b, mu) ridge that
+    drops trajectories into a false close-and-flat basin)."""
     bs = np.arange(B_RANGE[0], B_RANGE[1] + 1e-9, 5.0) if b0 is None \
         else np.arange(max(B_RANGE[0], b0 - 20), min(B_RANGE[1], b0 + 20) + 1e-9, 5.0)
     ss = np.array([0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0])
+    if mu_fixed is not None:
+        grid = [(E(b, s, mu_fixed), b, s) for b in bs for s in ss]
+        _, b_best, s_best = min(grid)
+        res = minimize(lambda x: E(x[0], math.exp(x[1]), mu_fixed),
+                       x0=[b_best, math.log(s_best)], method="Nelder-Mead",
+                       options=dict(xatol=0.05, fatol=1e-6, maxiter=200))
+        return (float(res.x[0]), float(math.exp(res.x[1])), float(mu_fixed),
+                float(res.fun))
     mus = np.array([0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0]) if mu0 is None \
         else np.clip(np.array([mu0 - 1.0, mu0, mu0 + 1.0]), *MU_RANGE)
     grid = [(E(b, s, mu), b, s, mu) for b in bs for s in ss for mu in mus]
@@ -216,7 +242,81 @@ def flat_scan(E):
     return bs, mus, Es
 
 
-def reconstruct(shot, iters=6, verbose=True):
+def _trajectory(E, M, base_mask, fx, fy, cx, cy, b0, iters, mu_fixed=None,
+                mu0=None, verbose=False, tag=""):
+    """one fixed-point trajectory from seed b0; returns (best, hist).
+    best = (residual, b, s, mu, ztilde) at the photometrically best iterate --
+    the map is not monotone (ztilde moves under the search), so keep-best is
+    the honest CT-free selection. Works at any resolution: pass the matching
+    (M, base_mask, fx, fy, cx, cy); s is resolution-invariant because the
+    depth family scales ztilde by b/fx of the SAME grid."""
+    H, W = M.shape[:2]
+    b, mu = b0, (mu_fixed if mu_fixed is not None else (mu0 or 0.0))
+    D = np.full((H, W), b)
+    hist, best = [], None
+    for it in range(iters):
+        Lhat, att = geometry(D, fx, fy, cx, cy, mu=mu)
+        g = solve_g(M, Lhat, att)
+        alb = np.linalg.norm(g, axis=-1)
+        n = g / np.where(alb > 1e-9, alb, 1.0)[..., None]
+        n[n[..., 2] < 0] *= -1.0
+        ztilde = bd.normals_to_depth(n)
+        ztilde = ztilde - np.median(ztilde[base_mask])
+        E.set_relief(ztilde, fx)
+        if mu_fixed is not None:
+            b, s, mu, e = search_bs(E, b0=b, mu_fixed=mu_fixed)
+        else:
+            b, s, mu, e = search_bs(E, b0=b, mu0=(mu if it else None))
+        D = np.maximum(b + s * (b / fx) * ztilde, 2.0)   # border ramps in ztilde
+        hist.append((b, s, mu, e))                       # must not go behind lens
+        if best is None or e < best[0]:
+            best = (e, b, s, mu, ztilde.copy())
+        if verbose:
+            print(f"  {tag}iter {it+1}: b = {b:6.2f} mm  s = {s:5.3f}  "
+                  f"mu = {mu:4.2f}  residual {e:.4f}")
+    return best, hist
+
+
+B_STARTS = (48.0, 57.0, 66.0)            # multi-start seeds inside the focus band
+MU_FILE = os.path.join(HERE, "ctfree_mu.json")
+
+
+def calibrate_mu(shots, mu_grid=(0, 2, 4, 6, 8, 10, 12), iters=3,
+                 b_starts=B_STARTS):
+    """rig-level LED emission exponent, jointly across shots. CT-free.
+
+    mu is hardware (one LED type on one ring), so every shot must share it:
+    for each candidate mu, each shot reports its best achievable residual
+    (over seeds); votes are per-shot normalised so no shot dominates.
+    Runs entirely at the DS resolution -- plenty for a model-selection vote."""
+    print(f"calibrating LED emission exponent over {list(shots)} ...")
+    R_tab = {}
+    for shot in shots:
+        lums, _ = load_lums(shot)
+        base_mask = bd.bone_mask(np.stack(lums, 0).mean(0))
+        E = Objective(lums, base_mask)
+        row = []
+        for mu in mu_grid:
+            e_best = min(_trajectory(E, E.Ms, E.mask, E.fx, E.fy, E.cx, E.cy,
+                                     b0, iters, mu_fixed=float(mu))[0][0]
+                         for b0 in b_starts)
+            row.append(e_best)
+        R_tab[shot] = np.array(row)
+        print(f"  {shot}: " + "  ".join(f"mu{m}:{e:.4f}"
+                                        for m, e in zip(mu_grid, row)))
+    votes = sum(R_tab[s] / R_tab[s].min() for s in shots)
+    mu_star = float(mu_grid[int(np.argmin(votes))])
+    print(f"  -> shared mu* = {mu_star:.1f} "
+          f"(votes: {np.array2string(votes, precision=3)})")
+    json.dump({"mu": mu_star,
+               "votes": {m: float(v) for m, v in zip(mu_grid, votes)},
+               "per_shot": {s: [float(x) for x in R_tab[s]] for s in R_tab}},
+              open(MU_FILE, "w"), indent=1)
+    print(f"  saved -> {MU_FILE}")
+    return mu_star
+
+
+def reconstruct(shot, iters=6, mu_fixed=None, multi_start=True, verbose=True):
     """CT-free near-field solve. Returns full-res D (mm), plus diagnostics.
     NOTHING derived from CT enters this function."""
     lums, ref = load_lums(shot)
@@ -224,43 +324,38 @@ def reconstruct(shot, iters=6, verbose=True):
     H, W = I.shape[1:]
     M = np.moveaxis(I, 0, -1)
     base_mask = bd.bone_mask(I.mean(0))
-
     E = Objective(lums, base_mask)
-    bs, mus, Es = flat_scan(E)                            # seed: photometric WD scan
-    ib, imu = np.unravel_index(np.argmin(Es), Es.shape)
-    b, mu = float(bs[ib]), float(mus[imu])
-    s = 1.0
-    if verbose:
-        print(f"  flat-plane scan: b0 = {b:.1f} mm, mu0 = {mu:.0f} "
-              f"(residual {Es.min():.4f}, worst {Es.max():.4f})")
 
-    D = np.full((H, W), b)
-    hist, best = [], None
-    for it in range(iters):
-        Lhat, att = geometry(D, FX, FY, CX, CY, mu=mu)
-        g = solve_g(M, Lhat, att)
-        alb = np.linalg.norm(g, axis=-1)
-        n = g / np.where(alb > 1e-9, alb, 1.0)[..., None]
-        n[n[..., 2] < 0] *= -1.0
-        ztilde = bd.normals_to_depth(n)
-        ztilde = ztilde - np.median(ztilde[base_mask])
-        E.set_relief(ztilde)
-        b, s, mu, e = search_bs(E, b0=b, mu0=(mu if it else None))
-        D = b + s * (b / FX) * ztilde
-        hist.append((b, s, mu, e))
-        # the fixed-point map is not monotone (ztilde moves under the search),
-        # so keep the photometrically best iterate -- still CT-free selection
-        if best is None or e < best[0]:
-            best = (e, b, s, mu, ztilde.copy())
+    if multi_start:
+        bs, mus, Es = None, None, None
+        # full-res trajectories from each seed in the focus band (the DS
+        # objective votes for the wrong basin, so triage must be full-res)
+        best, hist = None, []
+        for b0 in B_STARTS:
+            bi, hi = _trajectory(E, M, base_mask, FX, FY, CX, CY, b0, iters,
+                                 mu_fixed=mu_fixed)
+            hist += hi
+            if verbose:
+                print(f"  start b0={b0:5.1f}: best b = {bi[1]:6.2f} mm  "
+                      f"s = {bi[2]:5.3f}  mu = {bi[3]:5.2f}  "
+                      f"residual {bi[0]:.4f}")
+            if best is None or bi[0] < best[0]:
+                best = bi
+    else:
+        bs, mus, Es = flat_scan(E)                        # seed: photometric scan
+        ib, imu = np.unravel_index(np.argmin(Es), Es.shape)
+        b0, mu0 = float(bs[ib]), float(mus[imu])
         if verbose:
-            print(f"  iter {it+1}: b = {b:6.2f} mm  s = {s:5.3f}  mu = {mu:4.2f}"
-                  f"  residual {e:.4f}")
+            print(f"  flat-plane scan: b0 = {b0:.1f} mm, mu0 = {mu0:.0f} "
+                  f"(residual {Es.min():.4f}, worst {Es.max():.4f})")
+        best, hist = _trajectory(E, M, base_mask, FX, FY, CX, CY, b0, iters,
+                                 mu_fixed=mu_fixed, mu0=mu0, verbose=verbose)
 
     e, b, s, mu, ztilde = best
-    D = b + s * (b / FX) * ztilde
+    D = np.maximum(b + s * (b / FX) * ztilde, 2.0)
     hist.append((b, s, mu, e))
     if verbose:
-        print(f"  best iterate kept: b = {b:.2f} mm  s = {s:.3f}  mu = {mu:.2f}"
+        print(f"  best kept: b = {b:.2f} mm  s = {s:.3f}  mu = {mu:.2f}"
               f"  residual {e:.4f}")
 
     # final full-res solve for the confidence gate
@@ -290,7 +385,8 @@ def reconstruct(shot, iters=6, verbose=True):
     w = keep.astype(float)
     Dsm = gaussian_filter(D * w, 2.0) / np.maximum(gaussian_filter(w, 2.0), 1e-6)
     Dsm = np.where(keep, Dsm, D)
-    return D, Dsm, ref, keep, (bs, mus, Es), hist
+    scan = (bs, mus, Es) if Es is not None else None
+    return D, Dsm, ref, keep, scan, hist
 
 
 # ---------------------------------------------------------------------------
@@ -340,9 +436,10 @@ def evaluate(shot, D, keep):
                 scale=umeyama_scale(mk, obj))
 
 
-def run(shot, make_plots=True):
+def run(shot, mu_fixed=None, multi_start=True, make_plots=True):
     print(f"{shot}:")
-    D, Dsm, ref, keep, scan, hist = reconstruct(shot)
+    D, Dsm, ref, keep, scan, hist = reconstruct(shot, mu_fixed=mu_fixed,
+                                                multi_start=multi_start)
     if keep.sum() < 2000:
         print(f"  UNSTABLE ({keep.sum()} px survive) -- skipping mesh")
         return None
@@ -372,7 +469,7 @@ def run(shot, make_plots=True):
     print(f"  -> {shot}_mesh_ctfree_cam.ply / _ctfree_ct.ply "
           f"({len(cam)}v/{len(faces)}f)")
 
-    if make_plots:
+    if make_plots and scan is not None:
         bs, mus, Es = scan
         fig, axs = plt.subplots(1, 2, figsize=(11, 4))
         for j, m_ in enumerate(mus):
@@ -400,16 +497,30 @@ def run(shot, make_plots=True):
 
 
 if __name__ == "__main__":
-    shots = list(C.CT_CORR) if (len(sys.argv) > 1 and sys.argv[1] == "all") \
-        else ["shot_004"]
     print("CT-FREE near-field photometric stereo (CT used for evaluation only):")
+    mode = sys.argv[1] if len(sys.argv) > 1 else ""
+    if mode == "calibrate":
+        calibrate_mu(["shot_004", "shot_005", "shot_006", "shot_007"])
+        raise SystemExit(0)
+    # rig-level mu from ctfree_mu.json when present (bench-calibrated or the
+    # provisional value); otherwise mu is free per shot within MU_RANGE
+    mu_rig = json.load(open(MU_FILE))["mu"] if os.path.exists(MU_FILE) else None
+    if mu_rig is not None:
+        print(f"rig-level mu = {mu_rig} ({os.path.basename(MU_FILE)})")
+    if mode == "all":
+        mu_star, shots = mu_rig, list(C.CT_CORR)
+    elif mode.startswith("shot_"):
+        mu_star, shots = mu_rig, sys.argv[1:]
+    else:
+        mu_star, shots = mu_rig, ["shot_004"]             # diagnostic single shot
     rows = []
     for sh in shots:
-        ev = run(sh)
+        ev = run(sh, mu_fixed=mu_star)
         if ev:
             rows.append((sh, np.median(ev["ratio"]), ev["scale"], ev["fre_rms"]))
     if len(rows) > 1:
-        print("\nsummary (all CT-free; rigid-only alignment):")
+        print(f"\nsummary (all CT-free, shared mu = {mu_star}; "
+              f"rigid-only alignment):")
         print(f"{'shot':10}{'dist-scale':>12}{'sim-scale':>11}{'FRE rms':>9}")
         for sh, r, sc, f in rows:
             print(f"{sh:10}{r:12.3f}{sc:11.3f}{f:9.2f}")
