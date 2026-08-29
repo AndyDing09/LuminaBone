@@ -59,6 +59,12 @@ OUT = bd.project_path("depth_outputs", "ct_registered")
 os.makedirs(OUT, exist_ok=True)
 
 DS = 4                                   # downsample factor for the (b,s) search
+AIM_DX = None                            # LED beam-crossing distance (mm); None =
+                                         # parallel aim. Rig-level, like mu.
+TRIM = 0.0                               # fraction of worst pixels dropped from
+                                         # the objective (robustness to glints)
+UNDISTORT_GRID = False                   # True: shading solve uses the same
+                                         # undistorted rays as backprojection
 # The working-distance prior is the fixed-focus endoscope's depth-of-field
 # band: a bench-measurable LENS property (images are only sharp in this range,
 # which is why every capture sits near ~55 mm). It is NOT taken from CT. The
@@ -74,25 +80,74 @@ MU_RANGE = (0.0, 14.0)                   # LED emission exponent cos^mu bounds
 # forward model pieces (parameterised intrinsics so they work downsampled)
 # ---------------------------------------------------------------------------
 
-def geometry(D, fx, fy, cx, cy, mu=0.0):
+_GRIDS = {}
+
+
+def norm_grid(fx, fy, cx, cy, H, W):
+    """undistorted normalised ray coords (xn, yn) for every pixel, cached.
+
+    The backprojection path undistorts (cv2.undistortPoints); the shading
+    solve must place surface points with the SAME rays or edge pixels get
+    misplaced light vectors. Scaled K with the same coefficients is exact:
+    distortion acts on normalised coords, and (u/s - cx/s)/(fx/s) is the
+    same normalised coordinate at any image scale s.
+    """
+    key = (round(fx, 6), round(fy, 6), round(cx, 6), round(cy, 6), H, W,
+           UNDISTORT_GRID)
+    if key not in _GRIDS:
+        U, V = np.meshgrid(np.arange(W, dtype=np.float64),
+                           np.arange(H, dtype=np.float64))
+        if UNDISTORT_GRID:
+            Kl = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1.0]])
+            pts = np.stack([U.ravel(), V.ravel()], -1).reshape(-1, 1, 2)
+            n = cv2.undistortPoints(pts, Kl, DIST).reshape(H, W, 2)
+            xn = np.clip(n[..., 0], -2.0, 2.0)  # guard iterative-inversion blowups
+            yn = np.clip(n[..., 1], -2.0, 2.0)
+        else:
+            # legacy pinhole grid: reproduces the published table. The 2026-08-11
+            # sweep found the undistorted grid SHUFFLES errors rather than
+            # reducing them (suspect: the extreme k3 in calibration.txt), so the
+            # consistent-rays variant stays opt-in until recalibration.
+            xn, yn = (U - cx) / fx, (V - cy) / fy
+        _GRIDS[key] = (xn, yn)
+    return _GRIDS[key]
+
+
+def led_axes(aim_dx):
+    """unit emission axis per LED: parallel to the optical axis, or aimed at
+    the axis-crossing point (0,0,-aim_dx) -- the convergent aim the beam-map
+    study observed (led_wiring_ctfree.py, 5/5 shots)."""
+    axes = {}
+    for s in (1, 2, 3, 4):
+        a = (np.array([0.0, 0.0, -1.0]) if not aim_dx else
+             np.array([-P[s][0], -P[s][1], -aim_dx]))
+        axes[s] = a / np.linalg.norm(a)
+    return axes
+
+
+def geometry(D, fx, fy, cx, cy, mu=0.0, aim_dx=None):
     """per-pixel unit light vectors (H,W,4,3) + attenuation (H,W,4).
 
     attenuation = cos^mu(theta_s) / r^2 : inverse-square times a Lambertian-
-    emitter anisotropy with exponent mu (LEDs aimed along the optical axis, so
-    cos(theta_s) = D / r_s). mu = 0 is the isotropic point source.
+    emitter anisotropy with exponent mu. theta_s is measured from the LED's
+    emission axis: parallel to the optical axis by default, or aimed at the
+    crossing point (0,0,-aim_dx) when aim_dx is set (convergent-aim model).
+    mu = 0 is the isotropic point source.
     """
     H, W = D.shape
-    U, V = np.meshgrid(np.arange(W, dtype=np.float64),
-                       np.arange(H, dtype=np.float64))
-    Xw = np.stack([(U - cx) / fx * D, -(V - cy) / fy * D, -D], axis=-1)
+    xn, yn = norm_grid(fx, fy, cx, cy, H, W)
+    Xw = np.stack([xn * D, -yn * D, -D], axis=-1)
+    axes = led_axes(aim_dx)
     Lhat = np.empty((H, W, 4, 3)); att = np.empty((H, W, 4))
     for k, s in enumerate((1, 2, 3, 4)):
-        w = P[s][None, None, :] - Xw
+        w = P[s][None, None, :] - Xw                     # surface -> LED
         d2 = np.sum(w * w, axis=-1)
+        r = np.sqrt(d2)
         att[..., k] = 1.0 / d2
         if mu:
-            att[..., k] *= (D / np.sqrt(d2)) ** mu
-        Lhat[..., k, :] = w / np.sqrt(d2)[..., None]
+            cos = np.einsum("hws,s->hw", -w, axes[s]) / r   # LED -> surface vs axis
+            att[..., k] *= np.clip(cos, 0.0, None) ** mu
+        Lhat[..., k, :] = w / r[..., None]
     return Lhat, att
 
 
@@ -121,9 +176,8 @@ def normals_from_depth(D, fx, fy, cx, cy):
     solved normal tilts to compensate, which is why that objective is flat.)
     """
     H, W = D.shape
-    U, V = np.meshgrid(np.arange(W, dtype=np.float64),
-                       np.arange(H, dtype=np.float64))
-    Xw = np.stack([(U - cx) / fx * D, -(V - cy) / fy * D, -D], axis=-1)
+    xn, yn = norm_grid(fx, fy, cx, cy, H, W)
+    Xw = np.stack([xn * D, -yn * D, -D], axis=-1)
     du = np.gradient(Xw, axis=1)                          # tangent along u
     dv = np.gradient(Xw, axis=0)                          # tangent along v
     n = np.cross(du, dv)
@@ -187,7 +241,8 @@ class Objective:
         if D.min() <= 2.0:                               # surface through the lens
             return 1e9
         n = normals_from_depth(D, self.fx, self.fy, self.cx, self.cy)
-        Lhat, att = geometry(D, self.fx, self.fy, self.cx, self.cy, mu=mu)
+        Lhat, att = geometry(D, self.fx, self.fy, self.cx, self.cy, mu=mu,
+                             aim_dx=AIM_DX)
         m = np.einsum("hws,hwks->hwk", n, Lhat) * att    # model shading (H,W,4)
         m = np.maximum(m, 0.0)
         I = self.Ms
@@ -202,7 +257,10 @@ class Objective:
                    np.maximum((w * pred * pred)[msk].sum(0), 1e-12))
         pred = rho[..., None] * m * gam
         r = (w * np.abs(I - pred)).sum(-1) / np.maximum((w * I).sum(-1), 1e-9)
-        out = float(r[self.mask].mean())
+        rv = r[self.mask]
+        if TRIM > 0 and rv.size > 100:                   # drop glint/pit outliers
+            rv = np.sort(rv)[: int(rv.size * (1.0 - TRIM))]
+        out = float(rv.mean())
         return out if np.isfinite(out) else 1e9          # NaN poisons min()/keep-best
 
 
@@ -255,7 +313,7 @@ def _trajectory(E, M, base_mask, fx, fy, cx, cy, b0, iters, mu_fixed=None,
     D = np.full((H, W), b)
     hist, best = [], None
     for it in range(iters):
-        Lhat, att = geometry(D, fx, fy, cx, cy, mu=mu)
+        Lhat, att = geometry(D, fx, fy, cx, cy, mu=mu, aim_dx=AIM_DX)
         g = solve_g(M, Lhat, att)
         alb = np.linalg.norm(g, axis=-1)
         n = g / np.where(alb > 1e-9, alb, 1.0)[..., None]
@@ -359,7 +417,7 @@ def reconstruct(shot, iters=6, mu_fixed=None, multi_start=True, verbose=True):
               f"  residual {e:.4f}")
 
     # final full-res solve for the confidence gate
-    Lhat, att = geometry(D, FX, FY, CX, CY, mu=mu)
+    Lhat, att = geometry(D, FX, FY, CX, CY, mu=mu, aim_dx=AIM_DX)
     g = solve_g(M, Lhat, att)
     Ipred = np.einsum("hws,hwks->hwk", g, Lhat) * att
     resid = np.abs(M - Ipred).sum(-1) / (M.sum(-1) + 1e-6)
@@ -497,14 +555,29 @@ def run(shot, mu_fixed=None, multi_start=True, make_plots=True):
 
 
 if __name__ == "__main__":
+    # lightweight flags: --mu X --aim-dx Y --trim F  (rig-level model knobs)
+    argv = sys.argv[1:]
+    for flag, setter in (("--mu", lambda v: globals().__setitem__("_MU_CLI", v)),
+                         ("--aim-dx", lambda v: globals().__setitem__("AIM_DX", v)),
+                         ("--trim", lambda v: globals().__setitem__("TRIM", v))):
+        if flag in argv:
+            i = argv.index(flag)
+            setter(float(argv[i + 1]))
+            del argv[i:i + 2]
+    if "--undistort-grid" in argv:
+        UNDISTORT_GRID = True
+        argv.remove("--undistort-grid")
+    sys.argv = [sys.argv[0]] + argv
     print("CT-FREE near-field photometric stereo (CT used for evaluation only):")
+    print(f"model: AIM_DX={AIM_DX}  TRIM={TRIM}")
     mode = sys.argv[1] if len(sys.argv) > 1 else ""
     if mode == "calibrate":
         calibrate_mu(["shot_004", "shot_005", "shot_006", "shot_007"])
         raise SystemExit(0)
-    # rig-level mu from ctfree_mu.json when present (bench-calibrated or the
-    # provisional value); otherwise mu is free per shot within MU_RANGE
-    mu_rig = json.load(open(MU_FILE))["mu"] if os.path.exists(MU_FILE) else None
+    # rig-level mu: CLI --mu wins, else ctfree_mu.json, else free per shot
+    mu_rig = globals().get("_MU_CLI")
+    if mu_rig is None and os.path.exists(MU_FILE):
+        mu_rig = json.load(open(MU_FILE))["mu"]
     if mu_rig is not None:
         print(f"rig-level mu = {mu_rig} ({os.path.basename(MU_FILE)})")
     if mode == "all":
