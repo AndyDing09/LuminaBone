@@ -32,6 +32,16 @@ import cv2
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+# Figure font. Change FONT to restyle every label on the slide (titles, the
+# tracker table, the colourbar, the 3-D axes and the footer) in one place;
+# the rest of the list is the fallback chain if that face is not installed.
+FONT = "Arial"
+matplotlib.rcParams["font.family"] = "sans-serif"
+matplotlib.rcParams["font.sans-serif"] = [FONT, "Helvetica", "Liberation Sans",
+                                          "DejaVu Sans"]
+matplotlib.rcParams["mathtext.fontset"] = "dejavusans"   # keeps $...$ matching
+matplotlib.rcParams["axes.unicode_minus"] = False        # Arial lacks U+2212
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from scipy.ndimage import gaussian_filter
 
