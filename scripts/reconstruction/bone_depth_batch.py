@@ -102,19 +102,16 @@ ALL_ON_INDEX = 1
 #   azimuth 90 deg = light comes from the TOP / above (+y, "up" in the image)
 #   azimuth 180    = light comes from the LEFT (-x)
 #   azimuth 270    = light comes from BELOW (-y)
-# These are EMPIRICALLY CALIBRATED from the data (albedo-normalised shading
-# centroids, each single-LED frame divided by the all-on p*-1 frame, averaged
-# over all 17 locations):
-#   pN-2 RIGHT  -> measured  ~0 deg  (clean, strong: |signal| ~0.67)
-#   pN-4 LEFT   -> measured ~180 deg (clean, strong: |signal| ~0.71)
-#   pN-3 UPPER  -> measured  ~57 deg (an UPPER-RIGHT light, NOT straight top,
-#                  and only ~0.38x as directional as the side lights). The old
-#                  90 deg assumption was ~33 deg off. Vertical shape is real but
-#                  weaker/noisier than horizontal because of this weak 3rd light.
+# These are the TRUE physical rig layout: three identical LEDs arranged
+# symmetrically around the lens at RIGHT (0), TOP (90), LEFT (180). This matches
+# nearfield_lambertian.PHYSICAL_LED_AZIMUTH_DEG so both pipelines agree on the
+# hardware. (An earlier data-fit put the top LED at ~55 deg from shading
+# centroids, but that was an APPARENT-shading artifact of the far-field model,
+# not the real emitter position; the physical rig is symmetric.)
 # Adjust if your rig differs, or set ESTIMATE_AZIMUTH_FROM_IMAGES = True.
 SINGLE_LED_AZIMUTH_DEG = {
     2: 0.0,     # pN-2  -> RIGHT LED
-    3: 55.0,    # pN-3  -> UPPER LED (upper-right, weak; calibrated from data)
+    3: 90.0,    # pN-3  -> TOP   LED (straight up; symmetric physical rig)
     4: 180.0,   # pN-4  -> LEFT  LED
 }
 
