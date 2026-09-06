@@ -1,0 +1,4 @@
+level,b_recovered_mm,b_true_mm,relief_gain_s,similarity_scale,distance_scale,FRE_rigid_mm,LOO_rms_mm,oracle_anchored_mm,farfield_anchored_mm
+4,45.05,60.0,0.735,0.850,1.132,2.68,4.28,1.72,1.54
+5,45.55,55.4,1.000,1.271,0.793,3.07,4.98,1.32,1.22
+6,52.32,58.9,1.000,1.054,0.897,2.78,5.94,1.74,6.57

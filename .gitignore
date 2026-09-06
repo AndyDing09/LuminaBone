@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+
+# Scratch / superseded output that regenerates from the pipeline.
+# Keep depth_outputs/ct_registered and the slide folders: those are the
+# current meshes, the marker slides, and the paper's plot data.
+depth_outputs/mesh_cleanup/
+depth_outputs/ply_allon/
+depth_outputs/ply_allon_mesh/
+depth_outputs/recomputed/
+depth_outputs/meshes/
+depth_outputs/stitched/
+depth_outputs/nearfield/
+depth_outputs/triangulation_slides/
+depth_outputs/ply_renders/
+depth_outputs/ct_registered/shots_interpolated_*.ply
+
+# Assistant scratch
+Claude outputs/
+Claude_Context/
+
+# Legacy trees removed in the 2026-09 cleanup
+tools/
+archives/
+legacy_outputs/
+octave_figs/
+presentations/
+datanoctmarker/
+tracker_outputs/
+registration/reg_out/
+registration/sfm/
