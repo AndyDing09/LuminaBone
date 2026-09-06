@@ -567,6 +567,16 @@ if __name__ == "__main__":
     if "--undistort-grid" in argv:
         UNDISTORT_GRID = True
         argv.remove("--undistort-grid")
+    if "--wiring" in argv:                   # e.g. --wiring 270,90,180,0
+        i = argv.index("--wiring")
+        az = [float(x) for x in argv[i + 1].split(",")]
+        P = {s: np.array([A_MM * math.cos(math.radians(az[s - 1])),
+                          A_MM * math.sin(math.radians(az[s - 1])), 0.0])
+             for s in (1, 2, 3, 4)}
+        _GRIDS.clear()
+        print(f"wiring override: " +
+              " ".join(f"{s}:{az[s-1]:.0f}" for s in (1, 2, 3, 4)))
+        del argv[i:i + 2]
     sys.argv = [sys.argv[0]] + argv
     print("CT-FREE near-field photometric stereo (CT used for evaluation only):")
     print(f"model: AIM_DX={AIM_DX}  TRIM={TRIM}")

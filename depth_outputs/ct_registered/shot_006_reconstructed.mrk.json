@@ -1,0 +1,61 @@
+{
+ "@schema": "https://raw.githubusercontent.com/Slicer/Slicer/main/Modules/Loadable/Markups/Resources/Schema/markups-schema-v1.0.3.json#",
+ "markups": [
+  {
+   "type": "Fiducial",
+   "coordinateSystem": "RAS",
+   "controlPoints": [
+    {
+     "id": "1",
+     "label": "m1*",
+     "position": [
+      1.4420455714007063,
+      17.354621563499514,
+      42.98714857700415
+     ]
+    },
+    {
+     "id": "2",
+     "label": "m2*",
+     "position": [
+      4.4608715750245915,
+      17.685524228859645,
+      53.775592637557466
+     ]
+    },
+    {
+     "id": "3",
+     "label": "m3*",
+     "position": [
+      7.595034749896822,
+      8.528220105177008,
+      55.3456782295204
+     ]
+    },
+    {
+     "id": "4",
+     "label": "m4*",
+     "position": [
+      2.1221554066737904,
+      -7.2158757544452925,
+      46.97714998859886
+     ]
+    }
+   ],
+   "display": {
+    "color": [
+     1.0,
+     0.3,
+     0.3
+    ],
+    "selectedColor": [
+     1.0,
+     0.3,
+     0.3
+    ],
+    "glyphScale": 3.0,
+    "textScale": 3.0
+   }
+  }
+ ]
+}

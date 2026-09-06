@@ -1,0 +1,13 @@
+{
+ "mu_vote_minimum": 2.0,
+ "votes": {
+  "0": 4.167,
+  "2": 4.051,
+  "4": 4.147,
+  "6": 4.125,
+  "8": 4.184,
+  "10": 4.278,
+  "12": 4.657
+ },
+ "note": "CT-free cross-capture vote at DS resolution (calibrate_mu, shots 4-7, Aug 2026 rerun). Nearly flat: <6% spread over mu in [0,10]. End-to-end FRE strongly prefers mu=8 (see ctfree_mu_compare.json); mu*=8 in ctfree_mu.json rests on the CT truth-test."
+}

@@ -52,7 +52,17 @@ def inpaint_mask(image, mask, iterations=20):
     return filled
 
 
-def brightness_to_depth(luminance, albedo=0.5, light_power=0.3, eps=1e-3):
+# Diffuse reflectance (albedo) of spine bone under white light. Prepared / dry
+# vertebral cortical bone is a bright, near-white diffuse reflector; published
+# visible-range diffuse reflectance for bone runs ~0.4 (fresh/wet, blood-tinged)
+# to ~0.7 (dry, prepared specimen), so 0.6 is a good mid value for a clean
+# vertebral bone. NOTE: in the inverse-square inversion below only the PRODUCT
+# albedo * light_power enters, as a uniform sqrt() multiplier on r, so this value
+# sets the absolute depth SCALE, not the recovered shape / relative depth map.
+SPINE_BONE_ALBEDO = 0.6
+
+
+def brightness_to_depth(luminance, albedo=SPINE_BONE_ALBEDO, light_power=0.3, eps=1e-3):
     """Inverse-square inversion: r = sqrt(rho * L / I)."""
     safe_I = np.maximum(luminance, eps)
     return np.sqrt(albedo * light_power / safe_I)

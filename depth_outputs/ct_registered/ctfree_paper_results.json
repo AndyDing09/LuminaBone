@@ -1,0 +1,102 @@
+{
+ "shot_004": {
+  "b": 45.05,
+  "s": 0.735,
+  "mu": 8.0,
+  "residual": 0.1704,
+  "relief": 26.6,
+  "keep_px": 121834,
+  "dist_scale_median": 1.132,
+  "dist_scale_each": [
+   1.035,
+   0.872,
+   1.065,
+   1.199,
+   1.31,
+   1.446
+  ],
+  "sim_scale": 0.85,
+  "fre_rms": 2.68,
+  "fre_each": [
+   1.46,
+   3.38,
+   1.19,
+   3.72
+  ],
+  "n_markers": 4
+ },
+ "shot_005": {
+  "b": 45.55,
+  "s": 1.0,
+  "mu": 8.0,
+  "residual": 0.2194,
+  "relief": 26.6,
+  "keep_px": 87939,
+  "dist_scale_median": 0.793,
+  "dist_scale_each": [
+   0.821,
+   0.922,
+   0.821,
+   0.765,
+   0.669,
+   0.567
+  ],
+  "sim_scale": 1.271,
+  "fre_rms": 3.07,
+  "fre_each": [
+   1.25,
+   3.82,
+   1.15,
+   4.5
+  ],
+  "n_markers": 4
+ },
+ "shot_006": {
+  "b": 52.32,
+  "s": 1.0,
+  "mu": 8.0,
+  "residual": 0.2606,
+  "relief": 21.9,
+  "keep_px": 48086,
+  "dist_scale_median": 0.897,
+  "dist_scale_each": [
+   0.82,
+   0.974,
+   1.083,
+   0.6,
+   0.815,
+   1.045
+  ],
+  "sim_scale": 1.054,
+  "fre_rms": 2.78,
+  "fre_each": [
+   2.33,
+   4.56,
+   1.85,
+   1.15
+  ],
+  "n_markers": 4
+ },
+ "shot_007": {
+  "b": 69.89,
+  "s": 1.857,
+  "mu": 8.0,
+  "residual": 0.2527,
+  "relief": 25.4,
+  "keep_px": 39401,
+  "dist_scale_median": 1.249,
+  "dist_scale_each": [
+   1.249,
+   1.539,
+   0.934
+  ],
+  "sim_scale": 0.766,
+  "fre_rms": 6.02,
+  "fre_each": [
+   8.19,
+   4.19,
+   4.92
+  ],
+  "n_markers": 3
+ }
+}
