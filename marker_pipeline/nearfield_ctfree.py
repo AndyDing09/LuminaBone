@@ -377,6 +377,9 @@ def calibrate_mu(shots, mu_grid=(0, 2, 4, 6, 8, 10, 12), iters=3,
 def reconstruct(shot, iters=6, mu_fixed=None, multi_start=True, verbose=True):
     """CT-free near-field solve. Returns full-res D (mm), plus diagnostics.
     NOTHING derived from CT enters this function."""
+    d = bd.project_path("Data_collection", "calib_charuco", shot)
+    if not os.path.isdir(d):
+        raise SystemExit(f"no raw frames for {shot} ({d} missing)")
     lums, ref = load_lums(shot)
     I = np.stack(lums, axis=0)
     H, W = I.shape[1:]

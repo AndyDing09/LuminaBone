@@ -58,8 +58,12 @@ import detect_trackers as dt             # sibling in marker_pipeline
 # this depth is relative/uncalibrated anyway -- so undistortion isn't worth it.
 bd.UNDISTORT_INPUTS = False
 
-SHOTS_DIR = bd.project_path("Data_collection", "shots")
-OUT_DIR = bd.project_path("depth_outputs", "marker_depth_slides")
+# The surviving captures are the CT-marker shots (004/005/006) in
+# Data_collection/calib_charuco. The old Data_collection/shots set (shot_009+)
+# no longer exists, so these are the defaults -- plain `python
+# marker_depth_slides.py` now works with no arguments.
+SHOTS_DIR = bd.project_path("Data_collection", "calib_charuco")
+OUT_DIR = bd.project_path("depth_outputs", "calib_charuco_slides")
 
 # CONFIRMED LED->azimuth mapping (validated against CT on shots 4 & 5: far-field
 # depth correlates +0.97/+0.99, vs -0.73/-0.70 for the old 0/90/180/270 guess).
@@ -272,6 +276,11 @@ def build_slide(shot, files):
 
 def discover_shots(folder):
     """{shot_name: {1..4: ledpath, 'dark': darkpath}} for shots with all 4 LEDs."""
+    if not os.path.isdir(folder):
+        raise SystemExit(
+            f"no such shots folder: {folder}\n"
+            f"pass --shots-dir to point at a directory of shot_*/ capture "
+            f"folders (each with led1..led4.png + dark.png).")
     groups = {}
     for name in sorted(os.listdir(folder)):
         d = os.path.join(folder, name)
