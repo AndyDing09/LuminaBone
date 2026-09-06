@@ -9,6 +9,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+# Figure font for every label in this file (titles, axes, ticks, legends).
+matplotlib.rcParams["font.family"] = "sans-serif"
+matplotlib.rcParams["font.sans-serif"] = ["Arial", "Helvetica",
+                                          "Liberation Sans", "DejaVu Sans"]
+matplotlib.rcParams["mathtext.fontset"] = "dejavusans"  # keeps $\mu$ consistent
+matplotlib.rcParams["axes.unicode_minus"] = False       # Arial lacks U+2212
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import nearfield_ctfree as NF
@@ -31,29 +38,41 @@ for b0 in NF.B_STARTS:
     trajs.append((b0, best, hist))
 kept = min(t[1] for t in trajs)  # (e, b, s, mu, zt)
 
-fig, axs = plt.subplots(1, 2, figsize=(7.4, 2.75), dpi=250)
-cmap = plt.cm.viridis(np.linspace(0.05, 0.9, len(mus)))
+fig, axs = plt.subplots(1, 2, figsize=(7.4, 2.95), dpi=250)
+
+# (a) warm-to-cool ramp across mu: red -> orange -> yellow -> green. Ordered so
+# the reader can read the (b, mu) trade-off off the colour alone -- the red end
+# (low mu) rises with distance, the green end (high mu) falls.
+MU_COLORS = ["#c81e1e", "#e8590c", "#f08c00", "#e6b800",
+             "#b5c400", "#5aa32f", "#1a7a3a"]
 for j, m_ in enumerate(mus):
-    axs[0].plot(bs, Es[:, j], "-", lw=1.3, color=cmap[j],
+    axs[0].plot(bs, Es[:, j], "-", lw=1.4, color=MU_COLORS[j % len(MU_COLORS)],
                 label=rf"$\mu={m_:.0f}$")
 axs[0].set_xlabel("working distance $b$ (mm), flat plane", fontsize=8)
 axs[0].set_ylabel("photometric residual $E$", fontsize=8)
 axs[0].tick_params(labelsize=7)
-axs[0].legend(fontsize=5.6, ncol=2, frameon=False)
-axs[0].set_title("(a) flat-plane residual landscape", fontsize=8.5)
+# legend stretched horizontally across the top, above the axes
+axs[0].legend(fontsize=6, ncol=len(mus), frameon=False,
+              loc="lower center", bbox_to_anchor=(0.5, 1.0),
+              columnspacing=0.7, handlelength=1.1, handletextpad=0.4)
+axs[0].set_title("(a) flat-plane residual landscape", fontsize=8.5, pad=20)
 
+# (b) red / green / blue, one per seed; the kept value is neutral so it does
+# not read as a fourth trajectory
+SEED_COLORS = ["#c81e1e", "#1a7a3a", "#1f5fa8"]
 marks = ("o", "s", "^")
-for (b0, best, hist), mk in zip(trajs, marks):
+for (b0, best, hist), mk, cc in zip(trajs, marks, SEED_COLORS):
     it = np.arange(1, len(hist) + 1)
-    axs[1].plot(it, [h[0] for h in hist], "-" + mk, ms=3.5, lw=1.1,
+    axs[1].plot(it, [h[0] for h in hist], "-" + mk, ms=3.5, lw=1.1, color=cc,
                 label=rf"seed $b_0={b0:.0f}$")
-axs[1].axhline(kept[1], color="#b23b3b", ls="--", lw=1,
+axs[1].axhline(kept[1], color="#444444", ls="--", lw=1,
                label=rf"kept: $b={kept[1]:.2f}$, $s={kept[2]:.3f}$")
 axs[1].set_xlabel("iteration", fontsize=8)
 axs[1].set_ylabel("$b$ (mm)", fontsize=8)
 axs[1].tick_params(labelsize=7)
 axs[1].legend(fontsize=6, frameon=False)
-axs[1].set_title(r"(b) multi-start trajectories ($\mu^\ast{=}8$)", fontsize=8.5)
+axs[1].set_title(r"(b) multi-start trajectories ($\mu^\ast{=}8$)", fontsize=8.5,
+                 pad=20)                       # match (a), whose legend sits above
 fig.tight_layout()
 fig.savefig(os.path.join(FIGS, "fig_landscape.png"), bbox_inches="tight",
             facecolor="white")
@@ -120,7 +139,9 @@ print("wrote fig_overlay.png")
 # ---------- (c) far-field vs near-field bowl, from current verified meshes ----------
 def load_ply(path):
     verts = []
-    with open(path) as f:
+    # explicit encoding: Windows defaults to cp1252, which chokes on stray
+    # bytes in these ASCII PLYs (0x81 is undefined in cp1252)
+    with open(path, encoding="utf-8", errors="replace") as f:
         n = 0
         for line in f:
             if line.startswith("element vertex"): n = int(line.split()[-1])
